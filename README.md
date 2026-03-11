@@ -1,4 +1,4 @@
-# 🚀 Hired — Plateforme intelligente de recherche d'emploi
+#  Hired — Plateforme intelligente de recherche d'emploi
 
 ## Stack technique
 - **Frontend**: React 18 + TypeScript + Tailwind CSS + Vite
@@ -11,7 +11,7 @@
 
 ---
 
-## 📁 Structure du projet
+##  Structure du projet
 
 ```
 hired/
@@ -41,7 +41,7 @@ hired/
 
 ---
 
-## ⚡ Lancement rapide (Docker)
+##  Lancement rapide (Docker)
 
 ```bash
 # 1. Cloner et configurer les variables d'environnement
@@ -58,7 +58,7 @@ docker-compose up --build
 
 ---
 
-## 🔧 Lancement en développement (sans Docker)
+##  Lancement en développement (sans Docker)
 
 ### Backend
 ```bash
@@ -88,7 +88,7 @@ npm run dev
 
 ---
 
-## 🔑 Variables d'environnement
+##  Variables d'environnement
 
 ```env
 # Backend .env
@@ -104,27 +104,27 @@ VITE_API_URL=http://localhost:8000/api
 
 ---
 
-## 📋 Fonctionnalités
+##  Fonctionnalités
 
 | Module | Fonctionnalité |
 |---|---|
-| 🔐 Auth | Inscription, connexion JWT, refresh token |
-| 👤 Profil | Modifier infos pro, compétences, préférences |
-| 📄 CV | Upload PDF/DOCX, génération IA, optimisation ATS, export |
-| 💼 Job Feed | Recherche JSearch, score compatibilité GPT-4o, sauvegarde |
-| 📊 Tracker | Kanban 5 colonnes, priorités, export Excel/CSV |
-| 🎤 Simulateur | Entretien IA streaming GPT-4o, rapport STAR |
-| 🔔 Notifications | Système admin → utilisateurs |
-| 🛡️ Admin | Stats, gestion users, ban/unban |
+|  Auth | Inscription, connexion JWT, refresh token |
+|  Profil | Modifier infos pro, compétences, préférences |
+|  CV | Upload PDF/DOCX, génération IA, optimisation ATS, export |
+|  Job Feed | Recherche JSearch, score compatibilité GPT-4o, sauvegarde |
+|  Tracker | Kanban 5 colonnes, priorités, export Excel/CSV |
+|  Simulateur | Entretien IA streaming GPT-4o, rapport STAR |
+|  Notifications | Système admin → utilisateurs |
+|  Admin | Stats, gestion users, ban/unban |
 
 ---
 
-## 🗄️ Modèle de données
+##  Modèle de données
 
 8 entités principales :
 `Utilisateur` · `Profil` · `CV` · `OffreEmploi` · `Candidature` · `SessionEntretien` · `Notification` · `TestPreferences`
 
 ---
 
-## 👥 Auteurs
-Yasmine Daoudi · Hiba Filali — PFE 2024/2025
+## 👥 Auteur
+Yasmine Daoudi  PFE 2025/2026
