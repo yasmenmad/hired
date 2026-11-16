@@ -1,4 +1,4 @@
-# 💼 Hired — Plateforme Intelligente de Recherche d'Emploi & Coaching de Carrière
+# Hired — Plateforme Intelligente de Recherche d'Emploi & Coaching de Carrière
 
 [![React](https://img.shields.io/badge/Frontend-React_18_%2B_TypeScript-61dafb?logo=react&logoColor=black)](https://react.dev/)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -11,7 +11,7 @@
 
 ---
 
-## 🏛️ Architecture Technique
+## ️ Architecture Technique
 
 ```
 hired/
@@ -40,7 +40,7 @@ hired/
 
 ---
 
-## ⚡ Démarrage Rapide
+## Démarrage Rapide
 
 ### Option A — Déploiement Docker (Recommandé)
 
@@ -84,7 +84,7 @@ npm run dev
 
 ---
 
-## 🎯 Fonctionnalités Principales
+## Fonctionnalités Principales
 
 | Module | Spécifications Fonctionnelles |
 | :--- | :--- |
@@ -97,7 +97,7 @@ npm run dev
 
 ---
 
-## 👩‍💻 Auteure
+## ‍ Auteure
 
 **Yasmine Daoudi**  
 *Projet de Fin d'Études (PFE) — Génie Informatique*  
