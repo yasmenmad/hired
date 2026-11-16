@@ -4,97 +4,166 @@ import Modal from '../components/common/Modal';
 import { ai, checkBackend } from '../../infrastructure/api/apiClient';
 
 const JOBS = ['AI Engineer @ AstroAI','Product Manager @ Stripe','ML Researcher @ Mistral','Frontend Engineer @ Vercel','Senior Backend Eng. @ Deel'];
-const STEPS = ['Scanning CV structure & formatting…','Identifying keywords & skills…','Running Groq AI analysis…','Calculating ATS score…'];
+const STEPS = ['Scanning CV structure & formatting…','Identifying keywords & skills…','Running AI analysis…','Calculating ATS score…'];
+const GEN_STEPS = ['Gathering your details…','Crafting professional summary…','Writing experience bullets…','Optimising for ATS…'];
+
+/* Simple markdown-to-HTML renderer for CV preview */
+function renderMd(md=''){
+  return md
+    .replace(/## (.+)/g,'<h2 style="font-size:15px;font-weight:800;color:var(--p600);margin:18px 0 6px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1.5px solid var(--p200);padding-bottom:4px">$1</h2>')
+    .replace(/### (.+)/g,'<h3 style="font-size:13px;font-weight:700;color:var(--ink);margin:10px 0 2px">$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/^- (.+)/gm,'<li style="margin:2px 0;font-size:12.5px;color:var(--ink2)">$1</li>')
+    .replace(/(<li.*<\/li>\n?)+/g,'<ul style="margin:4px 0 8px 18px">$&</ul>')
+    .replace(/\n{2,}/g,'<br/>')
+    .replace(/\n/g,'<br/>');
+}
 
 export default function CVPage({ toast }) {
-  const [cvText,    setCvText]    = useState('');
-  const [fileName,  setFileName]  = useState('');
-  const [uploaded,  setUploaded]  = useState(false);
-  const [targetJob, setTargetJob] = useState(JOBS[0]);
-  const [customJD,  setCustomJD]  = useState('');
-  const [loading,   setLoading]   = useState(false);
-  const [progress,  setProgress]  = useState(0);
-  const [stepLabel, setStep]      = useState('');
-  const [result,    setResult]    = useState(null);
-  const [modal,     setModal]     = useState(null);
-  const [dragging,  setDragging]  = useState(false);
+ const [tab, setTab] = useState('analyze'); // 'analyze' | 'generate'
 
-  function handleFile(file) {
-    if (!file) return;
-    if (file.size > 5*1024*1024) { toast('File too large (max 5MB)'); return; }
-    setFileName(file.name);
+ /* ── Analyze state ── */
+ const [cvText, setCvText] = useState('');
+ const [fileName, setFileName] = useState('');
+ const [uploaded, setUploaded] = useState(false);
+ const [targetJob, setTargetJob] = useState(JOBS[0]);
+ const [customJD, setCustomJD] = useState('');
+ const [loading, setLoading] = useState(false);
+ const [progress, setProgress] = useState(0);
+ const [stepLabel, setStep] = useState('');
+ const [result, setResult] = useState(null);
+ const [modal, setModal] = useState(null);
+ const [dragging, setDragging] = useState(false);
 
-    // PDFs are binary — FileReader.readAsText produces garbled bytes.
-    // For .pdf files we instruct the user to paste text instead.
-    if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
-      toast('📋 PDF detected — please paste your CV text below for AI analysis');
-      setUploaded(true);
-      // Leave cvText empty so user pastes it
-      return;
-    }
+ /* ── Generate state ── */
+ const [genLoading, setGenLoading] = useState(false);
+ const [genProgress, setGenProgress] = useState(0);
+ const [genStep, setGenStep] = useState('');
+ const [genResult, setGenResult] = useState(null);
+ const [genForm, setGenForm] = useState({
+   name:'', title:'', email:'', phone:'', location:'', summary:'',
+   skills:'', languages:'', certifications:'', targetRole:'', targetJd:'',
+   exp:[{role:'',company:'',start:'',end:'',bullets:''}],
+   edu:[{degree:'',institution:'',year:''}],
+ });
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target.result || '';
-      // Sanity check — if it looks like binary, warn
-      if (text.includes('%PDF-') || /[\x00-\x08\x0E-\x1F]/.test(text.slice(0, 200))) {
-        toast('⚠️ Could not read file as text — please paste your CV text below');
-        setUploaded(true);
-        return;
-      }
-      setCvText(text);
-      setUploaded(true);
-      toast(`✅ CV uploaded: ${file.name}`);
-    };
-    reader.readAsText(file);
+ const setF = (k,v) => setGenForm(p=>({...p,[k]:v}));
+ const addExp = () => setGenForm(p=>({...p,exp:[...p.exp,{role:'',company:'',start:'',end:'',bullets:''}]}));
+ const setExp = (i,k,v) => setGenForm(p=>{const e=[...p.exp];e[i]={...e[i],[k]:v};return{...p,exp:e};});
+ const rmExp = i => setGenForm(p=>({...p,exp:p.exp.filter((_,j)=>j!==i)}));
+ const addEdu = () => setGenForm(p=>({...p,edu:[...p.edu,{degree:'',institution:'',year:''}]}));
+ const setEdu = (i,k,v) => setGenForm(p=>{const e=[...p.edu];e[i]={...e[i],[k]:v};return{...p,edu:e};});
+ const rmEdu = i => setGenForm(p=>({...p,edu:p.edu.filter((_,j)=>j!==i)}));
+
+ function handleFile(file) {
+ if (!file) return;
+ if (file.size > 5*1024*1024) { toast('File too large (max 5MB)'); return; }
+ setFileName(file.name);
+
+ // PDFs are binary — FileReader.readAsText produces garbled bytes.
+ // For .pdf files we instruct the user to paste text instead.
+ if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
+ toast(' PDF detected — please paste your CV text below for AI analysis');
+ setUploaded(true);
+ // Leave cvText empty so user pastes it
+ return;
+ }
+
+ const reader = new FileReader();
+ reader.onload = (e) => {
+ const text = e.target.result || '';
+ // Sanity check — if it looks like binary, warn
+ if (text.includes('%PDF-') || /[\x00-\x08\x0E-\x1F]/.test(text.slice(0, 200))) {
+ toast('️ Could not read file as text — please paste your CV text below');
+ setUploaded(true);
+ return;
+ }
+ setCvText(text);
+ setUploaded(true);
+ toast(` CV uploaded: ${file.name}`);
+ };
+ reader.readAsText(file);
+ }
+
+ async function runGenerate() {
+  if(!genForm.name.trim()){toast('Please enter your name');return;}
+  setGenLoading(true);setGenResult(null);setGenProgress(0);
+  for(let i=0;i<GEN_STEPS.length;i++){
+   setGenStep(GEN_STEPS[i]);
+   setGenProgress(((i+1)/GEN_STEPS.length)*100);
+   await new Promise(r=>setTimeout(r,600));
   }
-
-  async function runAnalysis() {
-    if (!cvText.trim() && !uploaded) {
-      toast('Please upload your CV first');
-      return;
-    }
-    setLoading(true); setResult(null); setProgress(0);
-    for (let i=0; i<STEPS.length; i++) {
-      setStep(STEPS[i]);
-      setProgress(((i+1)/STEPS.length)*100);
-      await new Promise(r=>setTimeout(r,520));
-    }
-
-    const jd = customJD || targetJob;
-    const textToAnalyze = cvText || `Experienced developer with skills in React, Python, Node.js. Worked at TechCorp building SaaS products.`;
-
-    try {
-      const backendOk = await checkBackend();
-      if (backendOk) {
-        const res = await ai.analyzeCV(textToAnalyze, jd);
-        setResult({
-          atsScore:    res.ats_score           ?? 70,
-          lift:        Math.max(0, (res.ats_score ?? 70) - 55),
-          keywords:    (res.keywords_found     || []).length,
-          bullets:     res.bullets_rewritten   ?? 0,
-          missing:     res.missing_keywords    || [],
-          issues:      res.issues              || [],
-          rewrites:    res.rewrites            || [],
-          suggestions: res.suggestions         || [],
-          strengths:   res.strengths           || [],
-          overall:     res.overall_rating      || 'Good',
-          summary:     res.summary             || '',
-          raw:         res,
-        });
-      } else {
-        setResult({ atsScore:72, lift:17, keywords:8, bullets:3, missing:['LLM Finetuning','MLOps','RLHF'], issues:[], rewrites:[], suggestions:['Add quantified achievements to each role','Include more technical keywords','Add a professional summary section'], strengths:['Clear structure','Relevant experience'], overall:'Good', summary:'Backend offline — showing demo results.' });
-        toast('⚠️ Backend offline — showing demo results');
-      }
-    } catch(e) {
-      setResult({ atsScore:65, lift:10, keywords:5, bullets:2, missing:[], issues:[], rewrites:[], suggestions:['Connect to backend for full AI analysis'], strengths:[], overall:'Fair', summary:'Could not connect to AI service.' });
-      toast('AI analysis failed — check backend');
-    }
-    setLoading(false);
+  const profile={
+   name:genForm.name,title:genForm.title,email:genForm.email,phone:genForm.phone,
+   location:genForm.location,summary:genForm.summary,
+   skills:genForm.skills.split(',').map(s=>s.trim()).filter(Boolean),
+   languages:genForm.languages.split(',').map(s=>s.trim()).filter(Boolean),
+   certifications:genForm.certifications.split(',').map(s=>s.trim()).filter(Boolean),
+   target_role:genForm.targetRole,target_jd:genForm.targetJd,
+   experience:genForm.exp.map(e=>({...e,bullets:e.bullets.split('\n').map(b=>b.trim()).filter(Boolean)})),
+   education:genForm.edu,
+  };
+  try{
+   const backendOk=await checkBackend();
+   if(backendOk){
+    const res=await ai.generateCV(profile);
+    setGenResult(res);
+    toast('CV generated successfully!');
+   } else {
+    toast('Backend offline — start the server first');
+   }
+  }catch(e){
+   toast('CV generation failed: '+e.message);
   }
+  setGenLoading(false);
+ }
 
-  function downloadOptimizedCV() {
-    const content = `OPTIMIZED CV
+ async function runAnalysis() {
+ if (!cvText.trim() && !uploaded) {
+ toast('Please upload your CV first');
+ return;
+ }
+ setLoading(true); setResult(null); setProgress(0);
+ for (let i=0; i<STEPS.length; i++) {
+ setStep(STEPS[i]);
+ setProgress(((i+1)/STEPS.length)*100);
+ await new Promise(r=>setTimeout(r,520));
+ }
+
+ const jd = customJD || targetJob;
+ const textToAnalyze = cvText || `Experienced developer with skills in React, Python, Node.js. Worked at TechCorp building SaaS products.`;
+
+ try {
+ const backendOk = await checkBackend();
+ if (backendOk) {
+ const res = await ai.analyzeCV(textToAnalyze, jd);
+ setResult({
+ atsScore: res.ats_score ?? 70,
+ lift: Math.max(0, (res.ats_score ?? 70) - 55),
+ keywords: (res.keywords_found || []).length,
+ bullets: res.bullets_rewritten ?? 0,
+ missing: res.missing_keywords || [],
+ issues: res.issues || [],
+ rewrites: res.rewrites || [],
+ suggestions: res.suggestions || [],
+ strengths: res.strengths || [],
+ overall: res.overall_rating || 'Good',
+ summary: res.summary || '',
+ raw: res,
+ });
+ } else {
+ setResult({ atsScore:72, lift:17, keywords:8, bullets:3, missing:['LLM Finetuning','MLOps','RLHF'], issues:[], rewrites:[], suggestions:['Add quantified achievements to each role','Include more technical keywords','Add a professional summary section'], strengths:['Clear structure','Relevant experience'], overall:'Good', summary:'Backend offline — showing demo results.' });
+ toast('️ Backend offline — showing demo results');
+ }
+ } catch(e) {
+ setResult({ atsScore:65, lift:10, keywords:5, bullets:2, missing:[], issues:[], rewrites:[], suggestions:['Connect to backend for full AI analysis'], strengths:[], overall:'Fair', summary:'Could not connect to AI service.' });
+ toast('AI analysis failed — check backend');
+ }
+ setLoading(false);
+ }
+
+ function downloadOptimizedCV() {
+ const content = `OPTIMIZED CV
 Generated by Hired. AI CV Optimizer
 ATS Score: ${result.atsScore}%
 =====================================
@@ -105,230 +174,323 @@ ${cvText || 'CV content goes here after optimization.'}
 Missing keywords added: ${(result.missing||[]).join(', ')||'None'}
 =====================================
 Optimized by Hired. — ATS Score: ${result.atsScore}%`;
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([content],{type:'text/plain'}));
-    a.download = 'optimized-cv.txt';
-    a.click();
-    toast('Downloading optimized CV…');
-  }
+ const a = document.createElement('a');
+ a.href = URL.createObjectURL(new Blob([content],{type:'text/plain'}));
+ a.download = 'optimized-cv.txt';
+ a.click();
+ toast('Downloading optimized CV…');
+ }
 
-  const S = {fontFamily:'var(--serif)'};
+ const S = {fontFamily:'var(--serif)'};
 
-  return (
-    <div style={{flex:1,overflowY:'auto',background:'var(--bg)'}}>
-      <div style={{maxWidth:1000,margin:'0 auto',padding:'28px 24px'}}>
+ return (
+ <div style={{flex:1,overflowY:'auto',background:'var(--bg)'}}>
+ <div style={{maxWidth:1000,margin:'0 auto',padding:'28px 24px'}}>
 
-        {/* Header */}
-        <div style={{background:'linear-gradient(135deg,var(--p50),#fff)',borderRadius:20,padding:'28px 32px',marginBottom:22,border:'1.5px solid var(--p200)',display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:20}}>
-          <div>
-            <div style={{...S,fontSize:28,fontWeight:800,letterSpacing:-.5,marginBottom:5}}>CV Optimizer</div>
-            <div style={{fontSize:13,color:'var(--muted)',lineHeight:1.6,maxWidth:500}}>Upload your CV, select a target role, and our Groq AI will analyse it and help you beat ATS systems.</div>
-          </div>
-          <div style={{display:'flex',gap:14,flexShrink:0}}>
-            {[['8k','CVs Optimized'],['62→91%','Avg ATS Lift']].map(([n,l])=>(
-              <div key={l} style={{background:'#fff',border:'1px solid var(--faint)',borderRadius:12,padding:'14px 18px',textAlign:'center'}}>
-                <div style={{...S,fontSize:22,fontWeight:800,color:'var(--p600)',letterSpacing:-.5}}>{n}</div>
-                <div style={{fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:'var(--muted)',marginTop:2}}>{l}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+  {/* Header */}
+  <div style={{background:'linear-gradient(135deg,var(--p50),#fff)',borderRadius:20,padding:'28px 32px',marginBottom:22,border:'1.5px solid var(--p200)',display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:20,flexWrap:'wrap'}}>
+  <div>
+  <div style={{...S,fontSize:28,fontWeight:800,letterSpacing:-.5,marginBottom:5}}>CV Studio</div>
+  <div style={{fontSize:13,color:'var(--muted)',lineHeight:1.6,maxWidth:500}}>Generate a brand-new CV with AI, or upload yours for ATS analysis and optimisation tips.</div>
+  </div>
+  <div style={{display:'flex',gap:14,flexShrink:0}}>
+  {[['8k','CVs Optimized'],['62→91%','Avg ATS Lift']].map(([n,l])=>(
+  <div key={l} style={{background:'#fff',border:'1px solid var(--faint)',borderRadius:12,padding:'14px 18px',textAlign:'center'}}>
+  <div style={{...S,fontSize:22,fontWeight:800,color:'var(--p600)',letterSpacing:-.5}}>{n}</div>
+  <div style={{fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:'var(--muted)',marginTop:2}}>{l}</div>
+  </div>
+  ))}
+  </div>
+  </div>
 
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-          {/* LEFT */}
-          <div style={{display:'flex',flexDirection:'column',gap:12}}>
-            {/* Upload */}
-            <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
-              <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)',marginBottom:14}}>Upload Your CV</div>
-              <div onClick={()=>{const i=document.createElement('input');i.type='file';i.accept='.pdf,.doc,.docx,.txt';i.onchange=e=>handleFile(e.target.files[0]);i.click();}}
-                onDragOver={e=>{e.preventDefault();setDragging(true)}}
-                onDragLeave={()=>setDragging(false)}
-                onDrop={e=>{e.preventDefault();setDragging(false);handleFile(e.dataTransfer.files[0]);}}
-                style={{border:`2px dashed ${dragging?'var(--p400)':uploaded?'var(--green)':'var(--p200)'}`,borderRadius:14,padding:32,textAlign:'center',cursor:'pointer',transition:'all .2s',background:dragging?'var(--p50)':uploaded?'var(--greenl)':'var(--p25)'}}>
-                <div style={{width:52,height:52,borderRadius:16,background:uploaded?'var(--greenl)':'var(--p100)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 12px'}}>
-                  {uploaded
-                    ? <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    : <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--p500)" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  }
-                </div>
-                <div style={{fontWeight:700,fontSize:14,color:uploaded?'var(--green)':'var(--ink)',marginBottom:4}}>{uploaded?fileName:'Drop your CV here or click to upload'}</div>
-                <div style={{fontSize:12,color:'var(--muted)'}}>{uploaded?'Click to replace':'PDF, DOC, DOCX, TXT · max 5MB'}</div>
-              </div>
+  {/* Tab Switcher */}
+  <div style={{display:'flex',gap:4,background:'var(--surface)',borderRadius:14,padding:5,border:'1.5px solid var(--faint)',marginBottom:18,width:'fit-content'}}>
+  {[['analyze','🔍 Analyze CV'],['generate','✨ Generate CV']].map(([id,lbl])=>(
+   <button key={id} onClick={()=>setTab(id)} style={{padding:'9px 22px',borderRadius:10,border:'none',fontWeight:700,fontSize:13,cursor:'pointer',background:tab===id?'var(--p500)':'transparent',color:tab===id?'#fff':'var(--muted)',fontFamily:'var(--sans)',transition:'all .15s'}}>{lbl}</button>
+  ))}
+  </div>
 
-              {/* Or paste CV text */}
-              <div style={{marginTop:12}}>
-                <label className="field-lbl">Or paste your CV text directly</label>
-                <textarea className="field-input" value={cvText} onChange={e=>{setCvText(e.target.value);if(e.target.value)setUploaded(true);}} rows={4} placeholder="Paste your CV content here for analysis…" style={{resize:'vertical',minHeight:80}}/>
-              </div>
-            </div>
+  {tab==='generate'&&(
+  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+  <div style={{display:'flex',flexDirection:'column',gap:12}}>
+  <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
+  <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)',marginBottom:14}}>Personal Info</div>
+  {[['name','Full Name *','e.g. Karim Benali'],['title','Current Title','e.g. Full-Stack Developer'],['email','Email','karim@email.com'],['phone','Phone','+212 600 000 000'],['location','Location','Casablanca, Morocco']].map(([k,lbl,ph])=>(
+   <div key={k} style={{marginBottom:10}}><label className="field-lbl">{lbl}</label><input className="field-input" value={genForm[k]} onChange={e=>setF(k,e.target.value)} placeholder={ph}/></div>
+  ))}
+  <label className="field-lbl">Professional Summary (optional)</label>
+  <textarea className="field-input" value={genForm.summary} onChange={e=>setF('summary',e.target.value)} rows={3} placeholder="Brief career overview… AI will write one if left blank" style={{resize:'vertical'}}/>
+  </div>
+  <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
+  <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)',marginBottom:14}}>Skills & Extra</div>
+  {[['skills','Skills (comma-separated)','React, Python, Node.js'],['languages','Languages','English, French, Arabic'],['certifications','Certifications','AWS, PMP…']].map(([k,lbl,ph])=>(
+   <div key={k} style={{marginBottom:10}}><label className="field-lbl">{lbl}</label><input className="field-input" value={genForm[k]} onChange={e=>setF(k,e.target.value)} placeholder={ph}/></div>
+  ))}
+  </div>
+  <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
+  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+  <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)'}}>Work Experience</div>
+  <button className="btn btn-ghost btn-sm" onClick={addExp} style={{fontSize:11}}>+ Add</button>
+  </div>
+  {genForm.exp.map((ex,i)=>(
+   <div key={i} style={{marginBottom:12,padding:14,background:'var(--p25)',borderRadius:12,border:'1px solid var(--faint)'}}>
+   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+    <div><label className="field-lbl">Job Title</label><input className="field-input" value={ex.role} onChange={e=>setExp(i,'role',e.target.value)} placeholder="Software Engineer"/></div>
+    <div><label className="field-lbl">Company</label><input className="field-input" value={ex.company} onChange={e=>setExp(i,'company',e.target.value)} placeholder="AstroAI"/></div>
+    <div><label className="field-lbl">Start</label><input className="field-input" value={ex.start} onChange={e=>setExp(i,'start',e.target.value)} placeholder="Jan 2022"/></div>
+    <div><label className="field-lbl">End</label><input className="field-input" value={ex.end} onChange={e=>setExp(i,'end',e.target.value)} placeholder="Present"/></div>
+   </div>
+   <label className="field-lbl">Key Responsibilities (one per line)</label>
+   <textarea className="field-input" value={ex.bullets} onChange={e=>setExp(i,'bullets',e.target.value)} rows={3} placeholder="Built REST APIs\nReduced load time 40%" style={{resize:'vertical'}}/>
+   {genForm.exp.length>1&&<button onClick={()=>rmExp(i)} style={{marginTop:4,fontSize:11,color:'var(--red)',background:'none',border:'none',cursor:'pointer',fontWeight:600}}>Remove</button>}
+   </div>
+  ))}
+  </div>
+  <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
+  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+  <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)'}}>Education</div>
+  <button className="btn btn-ghost btn-sm" onClick={addEdu} style={{fontSize:11}}>+ Add</button>
+  </div>
+  {genForm.edu.map((ed,i)=>(
+   <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 1fr 80px',gap:8,marginBottom:8}}>
+    <div><label className="field-lbl">Degree</label><input className="field-input" value={ed.degree} onChange={e=>setEdu(i,'degree',e.target.value)} placeholder="BSc Computer Science"/></div>
+    <div><label className="field-lbl">Institution</label><input className="field-input" value={ed.institution} onChange={e=>setEdu(i,'institution',e.target.value)} placeholder="UM6P"/></div>
+    <div><label className="field-lbl">Year</label><input className="field-input" value={ed.year} onChange={e=>setEdu(i,'year',e.target.value)} placeholder="2023"/></div>
+   </div>
+  ))}
+  </div>
+  <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
+  <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)',marginBottom:14}}>Target Role (optional)</div>
+  <label className="field-lbl">Target Role</label>
+  <input className="field-input" value={genForm.targetRole} onChange={e=>setF('targetRole',e.target.value)} placeholder="AI Engineer @ AstroAI" style={{marginBottom:10}}/>
+  <label className="field-lbl">Paste Job Description (ATS tailoring)</label>
+  <textarea className="field-input" value={genForm.targetJd} onChange={e=>setF('targetJd',e.target.value)} rows={3} placeholder="Paste the full job description here…" style={{resize:'vertical',marginBottom:12}}/>
+  <button className="btn btn-primary" style={{width:'100%',justifyContent:'center'}} onClick={runGenerate} disabled={genLoading}>
+   {genLoading?'Generating your CV…':'✨ Generate My CV'}
+  </button>
+  </div>
+  </div>
+  <div style={{display:'flex',flexDirection:'column',gap:12}}>
+  {genLoading&&(<div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:28,display:'flex',flexDirection:'column',alignItems:'center',gap:14}}><div style={{width:48,height:48,borderRadius:12,background:'var(--p100)',display:'flex',alignItems:'center',justifyContent:'center',animation:'pulse 1.5s ease-in-out infinite'}}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--p500)" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div style={{fontSize:13,fontWeight:600,color:'var(--ink)',textAlign:'center'}}>{genStep}</div><div style={{width:'100%'}}><ProgressBar value={genProgress}/></div></div>)}
+  {!genLoading&&!genResult&&(<div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}><div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)',marginBottom:14}}>What AI generates for you</div>{[{c:'var(--green)',t:'A complete professionally written CV tailored to your role'},{c:'var(--p500)',t:'ATS-optimised keywords and action-verb bullet points'},{c:'var(--amber)',t:'A compelling professional summary that stands out'},{c:'var(--red)',t:'3 personalised ATS tips to maximise interview chances'}].map((x,i)=>(<div key={i} style={{display:'flex',gap:10,alignItems:'flex-start',padding:'10px 0',borderBottom:i<3?'1px solid var(--faint2)':'none'}}><div style={{width:8,height:8,borderRadius:'50%',background:x.c,flexShrink:0,marginTop:4}}/><div style={{fontSize:13,color:'var(--muted)',lineHeight:1.5}}>{x.t}</div></div>))}<div style={{marginTop:16,padding:'12px 14px',background:'var(--p25)',borderRadius:10,fontSize:12,color:'var(--p600)',fontWeight:600}}>Fill in your details and click "Generate My CV"</div></div>)}
+  {!genLoading&&genResult&&(
+  <>
+  <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+   <button className="btn btn-primary" style={{gap:6,display:'flex',alignItems:'center'}} onClick={()=>{navigator.clipboard?.writeText(genResult.plain_text||'');toast('CV copied!')}}>Copy Plain Text</button>
+   <button className="btn btn-outline btn-sm" style={{gap:6,display:'flex',alignItems:'center'}} onClick={()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([genResult.plain_text||''],{type:'text/plain'}));a.download=(genForm.name.replace(/\s+/g,'_')||'CV')+'_Hired.txt';a.click();toast('Downloaded!')}}>Download .txt</button>
+   <button className="btn btn-ghost btn-sm" onClick={()=>setGenResult(null)}>Regenerate</button>
+  </div>
+  {genResult.ats_tips?.length>0&&(<div style={{background:'var(--surface)',border:'1.5px solid var(--p200)',borderRadius:18,padding:18}}><div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)',marginBottom:10}}>ATS Tips</div>{genResult.ats_tips.map((t,i)=>(<div key={i} style={{display:'flex',gap:8,marginBottom:6,fontSize:12.5,color:'var(--muted)',lineHeight:1.5}}><span style={{color:'var(--p500)',flexShrink:0,fontWeight:700}}>{i+1}.</span>{t}</div>))}</div>)}
+  <div style={{background:'#fff',border:'1.5px solid var(--p200)',borderRadius:18,padding:28}}>
+  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+   <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)'}}>CV Preview</div>
+   {genResult.word_count&&<span style={{fontSize:11,color:'var(--muted)',fontWeight:600}}>{genResult.word_count} words</span>}
+  </div>
+  <div style={{fontSize:13,lineHeight:1.7,color:'var(--ink)'}} dangerouslySetInnerHTML={{__html:renderMd(genResult.cv_markdown||genResult.plain_text||'')}}/>
+  </div>
+  </>
+  )}
+  </div>
+  </div>
+  )}
 
-            {/* Target Role */}
-            <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
-              <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)',marginBottom:14}}>Target Role</div>
-              <label className="field-lbl">Preset job</label>
-              <select className="field-input" value={targetJob} onChange={e=>setTargetJob(e.target.value)} style={{marginBottom:12}}>
-                {JOBS.map(j=><option key={j}>{j}</option>)}
-              </select>
-              <label className="field-lbl">Or paste custom job description</label>
-              <textarea className="field-input" value={customJD} onChange={e=>setCustomJD(e.target.value)} rows={4} placeholder="Paste any job description for tailored analysis…" style={{resize:'vertical',minHeight:90,marginBottom:12}}/>
-              <button className="btn btn-primary" style={{width:'100%',justifyContent:'center'}} onClick={runAnalysis} disabled={loading}>
-                {loading?'Analysing with Groq AI…':'🤖 Analyse with Groq AI'}
-              </button>
-            </div>
+  {tab==='analyze'&&(
+  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+ {/* LEFT */}
+ <div style={{display:'flex',flexDirection:'column',gap:12}}>
+ {/* Upload */}
+ <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
+ <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)',marginBottom:14}}>Upload Your CV</div>
+ <div onClick={()=>{const i=document.createElement('input');i.type='file';i.accept='.pdf,.doc,.docx,.txt';i.onchange=e=>handleFile(e.target.files[0]);i.click();}}
+ onDragOver={e=>{e.preventDefault();setDragging(true)}}
+ onDragLeave={()=>setDragging(false)}
+ onDrop={e=>{e.preventDefault();setDragging(false);handleFile(e.dataTransfer.files[0]);}}
+ style={{border:`2px dashed ${dragging?'var(--p400)':uploaded?'var(--green)':'var(--p200)'}`,borderRadius:14,padding:32,textAlign:'center',cursor:'pointer',transition:'all .2s',background:dragging?'var(--p50)':uploaded?'var(--greenl)':'var(--p25)'}}>
+ <div style={{width:52,height:52,borderRadius:16,background:uploaded?'var(--greenl)':'var(--p100)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 12px'}}>
+ {uploaded
+ ? <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+ : <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--p500)" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+ }
+ </div>
+ <div style={{fontWeight:700,fontSize:14,color:uploaded?'var(--green)':'var(--ink)',marginBottom:4}}>{uploaded?fileName:'Drop your CV here or click to upload'}</div>
+ <div style={{fontSize:12,color:'var(--muted)'}}>{uploaded?'Click to replace':'PDF, DOC, DOCX, TXT · max 5MB'}</div>
+ </div>
 
-            {/* Export */}
-            {result && (
-              <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:18}}>
-                <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)',marginBottom:12}}>Export Results</div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                  <button className="btn btn-outline btn-sm" style={{justifyContent:'center',height:48,gap:6}} onClick={downloadOptimizedCV}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    Download CV
-                  </button>
-                  <button className="btn btn-outline btn-sm" style={{justifyContent:'center',height:48,gap:6,borderColor:'var(--green)',color:'var(--green)'}} onClick={()=>{
-                    const csv = `ATS Score,${result.atsScore}%\nATS Lift,+${result.lift}%\nKeywords,${result.keywords}\nBullets Rewritten,${result.bullets}`;
-                    const a = document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='cv-analysis.csv'; a.click();
-                    toast('Exported CSV');
-                  }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
-                    Export CSV
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+ {/* Or paste CV text */}
+ <div style={{marginTop:12}}>
+ <label className="field-lbl">Or paste your CV text directly</label>
+ <textarea className="field-input" value={cvText} onChange={e=>{setCvText(e.target.value);if(e.target.value)setUploaded(true);}} rows={4} placeholder="Paste your CV content here for analysis…" style={{resize:'vertical',minHeight:80}}/>
+ </div>
+ </div>
 
-          {/* RIGHT */}
-          <div style={{display:'flex',flexDirection:'column',gap:12}}>
-            {loading && (
-              <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:28,display:'flex',flexDirection:'column',alignItems:'center',gap:14}}>
-                <div style={{width:48,height:48,borderRadius:12,background:'var(--p100)',display:'flex',alignItems:'center',justifyContent:'center',animation:'pulse 1.5s ease-in-out infinite'}}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--p500)" strokeWidth="2" strokeLinecap="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
-                </div>
-                <div style={{fontSize:13,fontWeight:600,color:'var(--ink)',textAlign:'center'}}>{stepLabel}</div>
-                <div style={{width:'100%'}}><ProgressBar value={progress}/></div>
-              </div>
-            )}
+ {/* Target Role */}
+ <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
+ <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)',marginBottom:14}}>Target Role</div>
+ <label className="field-lbl">Preset job</label>
+ <select className="field-input" value={targetJob} onChange={e=>setTargetJob(e.target.value)} style={{marginBottom:12}}>
+ {JOBS.map(j=><option key={j}>{j}</option>)}
+ </select>
+ <label className="field-lbl">Or paste custom job description</label>
+ <textarea className="field-input" value={customJD} onChange={e=>setCustomJD(e.target.value)} rows={4} placeholder="Paste any job description for tailored analysis…" style={{resize:'vertical',minHeight:90,marginBottom:12}}/>
+ <button className="btn btn-primary" style={{width:'100%',justifyContent:'center'}} onClick={runAnalysis} disabled={loading}>
+ {loading?'Analysing your CV…':'🔍 Analyse My CV'}
+ </button>
+ </div>
 
-            {!loading && result && (
-              <>
-                <div style={{background:'var(--surface)',border:'1.5px solid var(--p300)',borderRadius:18,padding:22}}>
-                  <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
-                    <div style={{width:36,height:36,borderRadius:10,background:'var(--greenl)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    </div>
-                    <div>
-                      <div style={{fontWeight:800,fontSize:14,color:'var(--ink)'}}>Groq AI Analysis Complete</div>
-                      <div style={{fontSize:11,color:'var(--muted)'}}>+{result.lift}% ATS improvement</div>
-                    </div>
-                  </div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
-                    {[['New ATS Score',`${result.atsScore}%`,'var(--green)'],['Keywords Found',result.keywords,'var(--p500)'],['Bullets Rewritten',result.bullets,'var(--amber)'],['ATS Lift',`+${result.lift}%`,'var(--green)']].map(([l,v,c])=>(
-                      <div key={l} style={{background:'var(--p25)',borderRadius:10,padding:'10px 12px',border:'1px solid var(--faint)'}}>
-                        <div style={{...S,fontSize:18,fontWeight:800,color:c}}>{v}</div>
-                        <div style={{fontSize:10,color:'var(--muted)',fontWeight:600,marginTop:2}}>{l}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <ProgressBar value={result.atsScore} color="var(--green)"/>
-                </div>
+ {/* Export */}
+ {result && (
+ <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:18}}>
+ <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)',marginBottom:12}}>Export Results</div>
+ <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+ <button className="btn btn-outline btn-sm" style={{justifyContent:'center',height:48,gap:6}} onClick={downloadOptimizedCV}>
+ <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+ Download CV
+ </button>
+ <button className="btn btn-outline btn-sm" style={{justifyContent:'center',height:48,gap:6,borderColor:'var(--green)',color:'var(--green)'}} onClick={()=>{
+ const csv = `ATS Score,${result.atsScore}%\nATS Lift,+${result.lift}%\nKeywords,${result.keywords}\nBullets Rewritten,${result.bullets}`;
+ const a = document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='cv-analysis.csv'; a.click();
+ toast('Exported CSV');
+ }}>
+ <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
+ Export CSV
+ </button>
+ </div>
+ </div>
+ )}
+ </div>
 
-                {/* Strengths */}
-                {result.strengths?.length > 0 && (
-                  <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
-                    <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--green)',marginBottom:12}}>✅ Strengths</div>
-                    {result.strengths.map((s,i)=>(
-                      <div key={i} style={{display:'flex',gap:8,marginBottom:6,fontSize:12.5,color:'var(--ink)',lineHeight:1.5}}>
-                        <span style={{color:'var(--green)',flexShrink:0}}>★</span>{s}
-                      </div>
-                    ))}
-                  </div>
-                )}
+ {/* RIGHT */}
+ <div style={{display:'flex',flexDirection:'column',gap:12}}>
+ {loading && (
+ <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:28,display:'flex',flexDirection:'column',alignItems:'center',gap:14}}>
+ <div style={{width:48,height:48,borderRadius:12,background:'var(--p100)',display:'flex',alignItems:'center',justifyContent:'center',animation:'pulse 1.5s ease-in-out infinite'}}>
+ <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--p500)" strokeWidth="2" strokeLinecap="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+ </div>
+ <div style={{fontSize:13,fontWeight:600,color:'var(--ink)',textAlign:'center'}}>{stepLabel}</div>
+ <div style={{width:'100%'}}><ProgressBar value={progress}/></div>
+ </div>
+ )}
 
-                {/* Issues */}
-                {result.issues?.length > 0 && (
-                  <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
-                    <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--red)',marginBottom:12}}>⚠️ Issues Found</div>
-                    {result.issues.map((issue,i)=>{
-                      // Issue can be a string or {severity, issue, fix} object
-                      const isObj = typeof issue === 'object';
-                      const label  = isObj ? issue.issue  : issue;
-                      const fix    = isObj ? issue.fix    : null;
-                      const sev    = isObj ? issue.severity : 'medium';
-                      const sevCol = sev==='high' ? 'var(--red)' : sev==='low' ? 'var(--amber)' : '#8a5a0a';
-                      return (
-                        <div key={i} style={{marginBottom:10,padding:'10px 14px',background:'var(--redl,#fce8e8)',borderRadius:8,border:'1px solid rgba(154,31,31,.1)'}}>
-                          <div style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:fix?4:0}}>
-                            <span style={{color:sevCol,flexShrink:0,fontSize:11,fontWeight:800,textTransform:'uppercase'}}>{sev}</span>
-                            <span style={{fontSize:12.5,color:'var(--ink)',lineHeight:1.5,flex:1}}>{label}</span>
-                          </div>
-                          {fix && <div style={{fontSize:11.5,color:'var(--muted)',paddingLeft:36,lineHeight:1.5}}>→ {fix}</div>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+ {!loading && result && (
+ <>
+ <div style={{background:'var(--surface)',border:'1.5px solid var(--p300)',borderRadius:18,padding:22}}>
+ <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
+ <div style={{width:36,height:36,borderRadius:10,background:'var(--greenl)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+ <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+ </div>
+ <div>
+ <div style={{fontWeight:800,fontSize:14,color:'var(--ink)'}}>AI Analysis Complete</div>
+ <div style={{fontSize:11,color:'var(--muted)'}}>+{result.lift}% ATS improvement</div>
+ </div>
+ </div>
+ <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
+ {[['New ATS Score',`${result.atsScore}%`,'var(--green)'],['Keywords Found',result.keywords,'var(--p500)'],['Bullets Rewritten',result.bullets,'var(--amber)'],['ATS Lift',`+${result.lift}%`,'var(--green)']].map(([l,v,c])=>(
+ <div key={l} style={{background:'var(--p25)',borderRadius:10,padding:'10px 12px',border:'1px solid var(--faint)'}}>
+ <div style={{...S,fontSize:18,fontWeight:800,color:c}}>{v}</div>
+ <div style={{fontSize:10,color:'var(--muted)',fontWeight:600,marginTop:2}}>{l}</div>
+ </div>
+ ))}
+ </div>
+ <ProgressBar value={result.atsScore} color="var(--green)"/>
+ </div>
 
-                {/* Missing keywords */}
-                {result.missing?.length > 0 && (
-                  <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
-                    <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)',marginBottom:12}}>🔑 Missing Keywords to Add</div>
-                    <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                      {result.missing.map(k=><span key={k} style={{padding:'4px 11px',background:'var(--redl,#fce8e8)',border:'1px solid rgba(154,31,31,.2)',borderRadius:7,fontSize:12,fontWeight:700,color:'var(--red)'}}>{k}</span>)}
-                    </div>
-                  </div>
-                )}
+ {/* Strengths */}
+ {result.strengths?.length > 0 && (
+ <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
+ <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--green)',marginBottom:12}}> Strengths</div>
+ {result.strengths.map((s,i)=>(
+ <div key={i} style={{display:'flex',gap:8,marginBottom:6,fontSize:12.5,color:'var(--ink)',lineHeight:1.5}}>
+ <span style={{color:'var(--green)',flexShrink:0}}></span>{s}
+ </div>
+ ))}
+ </div>
+ )}
 
-                {/* Rewrites */}
-                {result.rewrites?.length > 0 && (
-                  <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
-                    <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--amber)',marginBottom:12}}>✏️ Suggested Rewrites</div>
-                    {result.rewrites.map((r,i)=>(
-                      <div key={i} style={{marginBottom:14,padding:'12px 14px',background:'var(--p25)',borderRadius:10}}>
-                        {r.section && <div style={{fontSize:10,fontWeight:800,color:'var(--p500)',textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>{r.section}</div>}
-                        {r.original && <div style={{fontSize:12,color:'var(--muted)',marginBottom:4,textDecoration:'line-through',opacity:.7}}>{r.original}</div>}
-                        {r.improved && <div style={{fontSize:12.5,color:'var(--ink)',fontWeight:600,lineHeight:1.5}}>→ {r.improved}</div>}
-                      </div>
-                    ))}
-                  </div>
-                )}
+ {/* Issues */}
+ {result.issues?.length > 0 && (
+ <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
+ <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--red)',marginBottom:12}}>️ Issues Found</div>
+ {result.issues.map((issue,i)=>{
+ // Issue can be a string or {severity, issue, fix} object
+ const isObj = typeof issue === 'object';
+ const label = isObj ? issue.issue : issue;
+ const fix = isObj ? issue.fix : null;
+ const sev = isObj ? issue.severity : 'medium';
+ const sevCol = sev==='high' ? 'var(--red)' : sev==='low' ? 'var(--amber)' : '#8a5a0a';
+ return (
+ <div key={i} style={{marginBottom:10,padding:'10px 14px',background:'var(--redl,#fce8e8)',borderRadius:8,border:'1px solid rgba(154,31,31,.1)'}}>
+ <div style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:fix?4:0}}>
+ <span style={{color:sevCol,flexShrink:0,fontSize:11,fontWeight:800,textTransform:'uppercase'}}>{sev}</span>
+ <span style={{fontSize:12.5,color:'var(--ink)',lineHeight:1.5,flex:1}}>{label}</span>
+ </div>
+ {fix && <div style={{fontSize:11.5,color:'var(--muted)',paddingLeft:36,lineHeight:1.5}}>→ {fix}</div>}
+ </div>
+ );
+ })}
+ </div>
+ )}
 
-                {/* Suggestions */}
-                {result.suggestions?.length > 0 && (
-                  <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
-                    <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--green)',marginBottom:12}}>💡 AI Suggestions</div>
-                    {result.suggestions.map((s,i)=>(
-                      <div key={i} style={{display:'flex',gap:8,marginBottom:8,fontSize:12.5,color:'var(--muted)',lineHeight:1.5}}>
-                        <span style={{color:'var(--green)',flexShrink:0}}>•</span>{s}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
+ {/* Missing keywords */}
+ {result.missing?.length > 0 && (
+ <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
+ <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)',marginBottom:12}}> Missing Keywords to Add</div>
+ <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+ {result.missing.map(k=><span key={k} style={{padding:'4px 11px',background:'var(--redl,#fce8e8)',border:'1px solid rgba(154,31,31,.2)',borderRadius:7,fontSize:12,fontWeight:700,color:'var(--red)'}}>{k}</span>)}
+ </div>
+ </div>
+ )}
 
-            {!loading && !result && (
-              <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
-                <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)',marginBottom:14}}>What Groq AI checks</div>
-                {[
-                  {color:'var(--green)',text:'ATS keyword density against the job description'},
-                  {color:'var(--amber)',text:'Bullet points with quantified achievements'},
-                  {color:'var(--red)',text:'Missing critical keywords for your target role'},
-                  {color:'var(--p500)',text:'Formatting and structure issues that break parsers'},
-                ].map((ins,i)=>(
-                  <div key={i} style={{display:'flex',gap:10,alignItems:'flex-start',padding:'10px 0',borderBottom:i<3?'1px solid var(--faint2)':'none'}}>
-                    <div style={{width:8,height:8,borderRadius:'50%',background:ins.color,flexShrink:0,marginTop:4}}/>
-                    <div style={{fontSize:13,color:'var(--muted)',lineHeight:1.5}}>{ins.text}</div>
-                  </div>
-                ))}
-                <div style={{marginTop:16,padding:'12px 14px',background:'var(--p25)',borderRadius:10,fontSize:12,color:'var(--p600)',fontWeight:600}}>
-                  💡 Upload your CV and paste the job description for the most accurate analysis
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+ {/* Rewrites */}
+ {result.rewrites?.length > 0 && (
+ <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
+ <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--amber)',marginBottom:12}}>️ Suggested Rewrites</div>
+ {result.rewrites.map((r,i)=>(
+ <div key={i} style={{marginBottom:14,padding:'12px 14px',background:'var(--p25)',borderRadius:10}}>
+ {r.section && <div style={{fontSize:10,fontWeight:800,color:'var(--p500)',textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>{r.section}</div>}
+ {r.original && <div style={{fontSize:12,color:'var(--muted)',marginBottom:4,textDecoration:'line-through',opacity:.7}}>{r.original}</div>}
+ {r.improved && <div style={{fontSize:12.5,color:'var(--ink)',fontWeight:600,lineHeight:1.5}}>→ {r.improved}</div>}
+ </div>
+ ))}
+ </div>
+ )}
+
+ {/* Suggestions */}
+ {result.suggestions?.length > 0 && (
+ <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
+ <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--green)',marginBottom:12}}> AI Suggestions</div>
+ {result.suggestions.map((s,i)=>(
+ <div key={i} style={{display:'flex',gap:8,marginBottom:8,fontSize:12.5,color:'var(--muted)',lineHeight:1.5}}>
+ <span style={{color:'var(--green)',flexShrink:0}}>•</span>{s}
+ </div>
+ ))}
+ </div>
+ )}
+ </>
+ )}
+
+ {!loading && !result && (
+ <div style={{background:'var(--surface)',border:'1.5px solid var(--faint)',borderRadius:18,padding:22}}>
+ <div style={{fontSize:10,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'var(--p500)',marginBottom:14}}>What AI checks in your CV</div>
+ {[
+ {color:'var(--green)',text:'ATS keyword density against the job description'},
+ {color:'var(--amber)',text:'Bullet points with quantified achievements'},
+ {color:'var(--red)',text:'Missing critical keywords for your target role'},
+ {color:'var(--p500)',text:'Formatting and structure issues that break parsers'},
+ ].map((ins,i)=>(
+ <div key={i} style={{display:'flex',gap:10,alignItems:'flex-start',padding:'10px 0',borderBottom:i<3?'1px solid var(--faint2)':'none'}}>
+ <div style={{width:8,height:8,borderRadius:'50%',background:ins.color,flexShrink:0,marginTop:4}}/>
+ <div style={{fontSize:13,color:'var(--muted)',lineHeight:1.5}}>{ins.text}</div>
+ </div>
+ ))}
+ <div style={{marginTop:16,padding:'12px 14px',background:'var(--p25)',borderRadius:10,fontSize:12,color:'var(--p600)',fontWeight:600}}>
+ Upload your CV and paste the job description for the most accurate analysis
+ </div>
+ </div>
+ )}
+ </div>
+ </div>
+ )}
+ </div>
+ </div>
+ );
 }

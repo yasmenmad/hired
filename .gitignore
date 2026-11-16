@@ -1,9 +1,13 @@
 node_modules/
+venv/
 .env
 __pycache__/
 *.pyc
 *.pyo
 .DS_Store
+*.db
+audios/
+tmp/
 frontend/dist/
 frontend/node_modules/
-*.db
+backend/avatar_engine/node_modules/

@@ -24,6 +24,23 @@ class CVAnalysisRequest(BaseModel):
     job_description: Optional[str] = ""
 
 
+class CVGenerateRequest(BaseModel):
+    name: str
+    title: Optional[str] = ""
+    email: Optional[str] = ""
+    phone: Optional[str] = ""
+    location: Optional[str] = ""
+    summary: Optional[str] = ""
+    experience: Optional[list[dict]] = []   # [{role, company, start, end, bullets:[str]}]
+    education: Optional[list[dict]] = []    # [{degree, institution, year}]
+    skills: Optional[list[str]] = []
+    languages: Optional[list[str]] = []
+    certifications: Optional[list[str]] = []
+    target_role: Optional[str] = ""
+    target_jd: Optional[str] = ""          # Optional job description to tailor against
+
+
+
 class CoverLetterRequest(BaseModel):
     user_profile: dict
     job: dict
@@ -81,6 +98,54 @@ class InterviewSessionSaveRequest(BaseModel):
 
 
 # ── Endpoints ──────────────────────────────────────────────────
+
+@router.post("/cv/generate")
+async def generate_cv_endpoint(req: CVGenerateRequest):
+    """Generate a full professional CV using Groq AI."""
+    from app.infrastructure.ai.groq_service import _json_chat
+    import json
+
+    exp_str = json.dumps(req.experience or [], indent=2)
+    edu_str = json.dumps(req.education or [], indent=2)
+
+    prompt = f"""You are an expert CV writer. Generate a complete, ATS-optimised professional CV.
+
+Candidate details:
+- Name: {req.name}
+- Title: {req.title or 'Not specified'}
+- Email: {req.email or 'candidate@email.com'}
+- Phone: {req.phone or ''}
+- Location: {req.location or ''}
+- Target Role: {req.target_role or req.title or 'Not specified'}
+- Skills: {', '.join(req.skills or [])}
+- Languages: {', '.join(req.languages or [])}
+- Certifications: {', '.join(req.certifications or [])}
+
+Work Experience (raw data):
+{exp_str}
+
+Education:
+{edu_str}
+
+Personal Summary hint: {req.summary or 'Write a compelling 3-sentence professional summary.'}
+
+Target Job Description (tailor for this if provided):
+{req.target_jd or 'General professional role.'}
+
+Return a JSON object:
+{{
+  "cv_markdown": "<Full CV formatted in clean Markdown with sections: Contact, Professional Summary, Work Experience, Education, Skills, Languages, Certifications. Use ## for section headers, **bold** for job titles, and bullet points (-) for responsibilities. Make it compelling, action-verb-driven, and ATS-friendly.>",
+  "plain_text": "<Same CV but as plain text (no markdown) for copy-paste>",
+  "word_count": <integer>,
+  "ats_tips": ["<3 tips to improve ATS score for this specific CV>"]
+}}"""
+
+    try:
+        result = await _json_chat([{"role": "user", "content": prompt}], temperature=0.4, max_tokens=3000)
+        return result
+    except Exception as e:
+        raise HTTPException(503, f"CV generation failed: {e}")
+
 
 @router.post("/cv/analyze")
 async def analyze_cv_endpoint(req: CVAnalysisRequest):

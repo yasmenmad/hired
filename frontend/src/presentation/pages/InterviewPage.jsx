@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ai } from '../../infrastructure/api/apiClient';
+import AvatarInterviewPage from './AvatarInterviewPage';
 
 const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
@@ -422,6 +423,10 @@ export default function InterviewPage({ toast, user }) {
     return <RHChatInterview role={role} diff={diff} focus={focus} onEnd={handleEnd} toast={toast} />;
   }
 
+  if (stage === 'avatar') {
+    return <AvatarInterviewPage role={role} diff={diff} focus={focus} onEnd={handleEnd} toast={toast} />;
+  }
+
   return (
     <div style={{ flex: 1, overflow: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '32px 20px' }}>
       <div style={{ width: '100%', maxWidth: 680 }}>
@@ -430,7 +435,7 @@ export default function InterviewPage({ toast, user }) {
         <div style={{ background: 'linear-gradient(135deg,var(--p800),var(--p600))', borderRadius: 24, padding: '32px 40px', marginBottom: 16, position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', top: -60, right: -60, width: 240, height: 240, background: 'rgba(255,255,255,.05)', borderRadius: '50%' }} />
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--p200)', marginBottom: 10 }}>AI Interview Coach · Powered by Groq</div>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--p200)', marginBottom: 10 }}>AI Interview Coach · Personalized Analysis</div>
             <div style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(18px,2.5vw,26px)', fontWeight: 800, color: '#fff', letterSpacing: -.6, lineHeight: 1.2, marginBottom: 8 }}>
               Real RH interview. Real scoring. Get hired.
             </div>
@@ -438,7 +443,7 @@ export default function InterviewPage({ toast, user }) {
               Sophie Martin (AI HR Manager) conducts a live conversational interview — with voice call support.
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
-              {[<><IcMic active={false} />&nbsp;Voice call</>, 'Groq AI', 'Real-time feedback'].map((f, i) => (
+              {[<><IcMic active={false} />&nbsp;Voice call</>, 'AI Expert', 'Real-time feedback'].map((f, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, background: 'rgba(255,255,255,.1)', fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.8)' }}>{f}</div>
               ))}
             </div>
@@ -480,17 +485,62 @@ export default function InterviewPage({ toast, user }) {
             </div>
           </div>
 
-          {/* Voice notice */}
-          <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 12, background: 'var(--p25)', border: '1px solid var(--p100)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-            <IcPhone />
-            <div style={{ fontSize: 12, color: 'var(--p600)', lineHeight: 1.6 }}>
-              <b>Voice Call mode available</b> — click "Voice Call" during the interview to hear Sophie speak and answer using your microphone. Requires a browser with Web Speech API support (Chrome recommended).
-            </div>
+          {/* Mode selector */}
+          <div style={{ marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+
+            {/* Text Chat */}
+            <button
+              id="start-text-interview-btn"
+              onClick={() => setStage('interview')}
+              disabled={!role.trim()}
+              style={{
+                padding: '16px 12px', borderRadius: 14, border: '2px solid var(--faint)',
+                background: role.trim() ? 'linear-gradient(135deg,var(--p400),var(--p700))' : 'var(--faint)',
+                color: role.trim() ? '#fff' : 'var(--muted)',
+                cursor: role.trim() ? 'pointer' : 'not-allowed',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                boxShadow: role.trim() ? '0 6px 22px rgba(98,71,212,.3)' : 'none',
+                transition: 'all .2s',
+              }}
+            >
+              <span style={{ fontSize: 24 }}>💬</span>
+              <span style={{ fontSize: 14, fontWeight: 800 }}>Text Chat</span>
+              <span style={{ fontSize: 11, opacity: .8 }}>Classic chat with Sophie</span>
+            </button>
+
+            {/* Video Call with Avatar */}
+            <button
+              id="start-avatar-interview-btn"
+              onClick={() => setStage('avatar')}
+              disabled={!role.trim()}
+              style={{
+                padding: '16px 12px', borderRadius: 14, border: '2px solid',
+                borderColor: role.trim() ? 'rgba(16,185,129,.6)' : 'var(--faint)',
+                background: role.trim()
+                  ? 'linear-gradient(135deg, rgba(16,185,129,.15), rgba(5,150,105,.25))'
+                  : 'var(--faint)',
+                color: role.trim() ? 'var(--ink)' : 'var(--muted)',
+                cursor: role.trim() ? 'pointer' : 'not-allowed',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                boxShadow: role.trim() ? '0 6px 22px rgba(16,185,129,.2)' : 'none',
+                transition: 'all .2s', position: 'relative', overflow: 'hidden',
+              }}
+              onMouseEnter={e => { if (role.trim()) { e.currentTarget.style.borderColor = 'rgba(16,185,129,.9)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(16,185,129,.35)'; } }}
+              onMouseLeave={e => { if (role.trim()) { e.currentTarget.style.borderColor = 'rgba(16,185,129,.6)'; e.currentTarget.style.boxShadow = '0 6px 22px rgba(16,185,129,.2)'; } }}
+            >
+              {role.trim() && (
+                <span style={{ position: 'absolute', top: 6, right: 8, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 50, background: 'rgba(16,185,129,.2)', color: '#059669', letterSpacing: .5, textTransform: 'uppercase' }}>NEW</span>
+              )}
+              <span style={{ fontSize: 24 }}>📹</span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: role.trim() ? 'var(--ink)' : 'var(--muted)' }}>Video Call</span>
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>3D avatar · voice-to-voice</span>
+            </button>
           </div>
 
-          <button onClick={() => setStage('interview')} disabled={!role.trim()} style={{ width: '100%', padding: '14px', borderRadius: 13, border: 'none', background: role.trim() ? 'linear-gradient(135deg,var(--p400),var(--p700))' : 'var(--faint)', color: role.trim() ? '#fff' : 'var(--muted)', fontSize: 15, fontWeight: 800, cursor: role.trim() ? 'pointer' : 'not-allowed', boxShadow: role.trim() ? '0 6px 22px rgba(98,71,212,.35)' : 'none', transition: 'all .2s' }}>
-            Start Interview with Sophie
-          </button>
+          {/* Note */}
+          <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--p25)', border: '1px solid var(--faint)', fontSize: 11.5, color: 'var(--p600)', lineHeight: 1.6 }}>
+            <b>📹 Video Call</b> opens an immersive 3D AI avatar interview. Sara speaks and listens in real-time via voice. Requires the avatar backend running on <code style={{ background: 'var(--faint)', padding: '1px 4px', borderRadius: 4 }}>localhost:3000</code>.
+          </div>
         </div>
       </div>
     </div>

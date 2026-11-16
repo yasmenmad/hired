@@ -1,12 +1,17 @@
-# Hired - Distributed Career Management & Application Automation Platform
+# Hired - Intelligent Recruitment Automation & Sara 3D AI Interviewer
 
-[![React](https://img.shields.io/badge/Frontend-React_18_%2B_TypeScript-61dafb?logo=react&logoColor=black)](https://react.dev/)
+[![React](https://img.shields.io/badge/Frontend-React_19_%2B_Tailwind_4-61dafb?logo=react&logoColor=black)](https://react.dev/)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL_16-4169e1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Docker](https://img.shields.io/badge/Orchestration-Docker_Compose-2496ed?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Node.js](https://img.shields.io/badge/Avatar_Engine-Node.js-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Three.js](https://img.shields.io/badge/3D_Engine-Three.js_%2F_TalkingHead-black?logo=three.js&logoColor=white)](https://threejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A microservice-ready, full-stack recruitment automation platform engineered to streamline job application tracking, candidate-profile alignment, automated CV generation, and AI-assisted interview preparation.
+> **Live Deployment:** [https://yasmenmad.github.io/hired/](https://yasmenmad.github.io/hired/)  
+> **Interactive 3D Avatar:** Sara (Virtual HR Interviewer with Three.js & TalkingHead)  
+> **Technical Architecture:** [`AVATAR_LOGIC.md`](./AVATAR_LOGIC.md) | [`BACKEND_ARCHITECTURE.md`](./BACKEND_ARCHITECTURE.md) | [`FRONTEND_ARCHITECTURE.md`](./FRONTEND_ARCHITECTURE.md)  
+> **Author:** Yasmine Daoudi
+
+A production-grade recruitment automation platform that integrates career management, automated resume scoring, and **Sara**, a real-time conversational 3D AI interviewer powered by phoneme-synchronized lip-sync, Whisper-large-v3 speech recognition, and Llama 3.3 70B persona modeling.
 
 ---
 
@@ -14,65 +19,71 @@ A microservice-ready, full-stack recruitment automation platform engineered to s
 
 ```mermaid
 flowchart TD
-    Client[React 18 + TypeScript Client<br/>Vite / Tailwind / Zustand] -->|REST API + JWT Bearer| Gateway[FastAPI Application Server]
-    Gateway --> Auth[Authentication & RBAC Security Layer]
-    Gateway --> AI[AI Prompt Chain & Matching Service]
-    Gateway --> Repos[Repository Layer / SQLAlchemy]
-    Repos --> DB[(PostgreSQL 16 Relational Engine)]
-    Gateway --> Cache[(Session / In-Memory State)]
+    User([Candidate Voice / Audio]) -->|WebM Stream| Client[React 19 Frontend Client]
+    Client -->|postMessage| AvatarIframe[Three.js / TalkingHead 3D Canvas<br/>Sara Avatar Mesh: avatar.glb]
+    Client -->|Base64 Audio / REST| AvatarEngine[Node.js Avatar Engine Service]
+    AvatarEngine -->|Whisper-large-v3| WhisperAPI[Speech-to-Text Transcriber]
+    WhisperAPI -->|Transcribed Text| LLM[Llama 3.3 70B / LangChain Persona]
+    LLM -->|Structured JSON: Speech, Visemes, Animations| AvatarEngine
+    AvatarEngine -->|Audio + Viseme Timeline| Client
+    Client -->|FastAPI Gateway| Backend[Python FastAPI REST API]
+    Backend --> DB[(SQLite / PostgreSQL Relational DB)]
 ```
 
 ---
 
-## Architectural Modules
+## Core Engineering Modules
 
-### 1. Asynchronous REST Backend (FastAPI)
-- **Layered Architecture:** Strict separation of concerns across Routers, Services, Repositories, Schemas, and Domain Models.
-- **Data Persistence:** SQLAlchemy 2.0 ORM with PostgreSQL 16 backing store and Alembic schema migrations.
-- **Authentication:** OAuth2 Password Bearer flow with cryptographically salted Argon2/Bcrypt password hashing and short-lived JWT access tokens.
+### 1. Sara 3D Avatar Engine (`avatar_engine` & `avatar.html`)
+- **Three.js & TalkingHead:** Loads dynamic upper-body 3D mesh (`avatar.glb`) with realistic viseme morph targets for phoneme-accurate lip-synchronization.
+- **Bi-Directional Communication:** Uses window `postMessage` protocol between the React parent and the sandboxed 3D WebGL context to trigger dynamic gestures (welcoming, questioning, thinking, agreeing).
+- **Emotion Analysis:** Dynamically adjusts persona prompts if stress indicators are detected during interview rounds.
 
-### 2. Reactive Single-Page Application (React 18)
-- **State Management:** Decentralized state synchronization utilizing Zustand.
-- **Type Safety:** Comprehensive TypeScript domain interfaces across API request/response boundaries.
-- **Responsive Layout:** Tailwind CSS UI components with high accessibility standards.
+### 2. Frontend Client (React 19 + Tailwind CSS 4)
+- **Domain-Driven Design (DDD):** Layered separation across `domain/`, `application/`, `infrastructure/`, and `presentation/`.
+- **Pages & Tooling:** Live interview room (`AvatarInterviewPage.jsx`), interactive job tracking Kanban board, salary benchmarking visualizer, and candidate profile management.
 
-### 3. Containerized Orchestration
-- Multi-container setup managed via `docker-compose.yml` isolating backend, frontend, and PostgreSQL network services.
-
----
-
-## Core API Specification
-
-| Route | HTTP Method | Access Level | Description |
-| :--- | :--- | :--- | :--- |
-| `/api/auth/register` | `POST` | Public | Registers a new candidate profile |
-| `/api/auth/login` | `POST` | Public | Authenticates credentials and returns JWT token |
-| `/api/cv/generate` | `POST` | Authenticated | Generates structured CV layout from profile data |
-| `/api/candidatures` | `GET` | Authenticated | Retrieves tracked application states with pagination |
-| `/api/candidatures` | `POST` | Authenticated | Records new application submission |
-| `/api/interview/simulate` | `POST` | Authenticated | Conducts context-aware mock interview rounds |
+### 3. Backend Services (FastAPI & Node.js)
+- **FastAPI REST Engine:** Asynchronous job indexing, application tracking, and profile matching.
+- **Node.js Avatar Microservice:** High-throughput streaming audio ingestion and Whisper/LangChain pipeline.
 
 ---
 
-## Local Setup & Development
+## Technical Specifications & Documentation
 
+- Detailed 3D lip-sync and audio pipeline: [`AVATAR_LOGIC.md`](./AVATAR_LOGIC.md)
+- Backend services & API routes: [`BACKEND_ARCHITECTURE.md`](./BACKEND_ARCHITECTURE.md)
+- Frontend component architecture: [`FRONTEND_ARCHITECTURE.md`](./FRONTEND_ARCHITECTURE.md)
+- Conception and business requirements: [`PROJECT_CONCEPTION.md`](./PROJECT_CONCEPTION.md)
+
+---
+
+## Local Development Quickstart
+
+### 1. Frontend Development Server
 ```bash
-# Clone the repository
-git clone https://github.com/yasmenmad/hired.git
-cd hired
-
-# Launch full stack using Docker Compose
-docker compose up --build -d
-
-# Verify container health
-docker compose ps
+cd frontend
+npm install
+npm run dev
 ```
 
-The frontend dashboard will be available at `http://localhost:5173` and the OpenAPI interactive documentation at `http://localhost:8000/docs`.
+### 2. Backend Services
+```bash
+# Python FastAPI
+cd backend
+python -m venv venv
+venv\Scripts\activate  # On Linux/macOS: source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+
+# Avatar Engine (Node.js)
+cd backend/avatar_engine
+npm install
+node index.js
+```
 
 ---
 
-## Author
+## License
 
-- **Developer:** Yasmine Daoudi
-- **Focus:** Distributed Application Architecture & Enterprise Full-Stack Engineering
+MIT Open Source License - Copyright (c) 2026 Yasmine Daoudi

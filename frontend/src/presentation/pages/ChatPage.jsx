@@ -92,7 +92,7 @@ export default function ChatPage({ toast, user }) {
   useEffect(() => {
     setMessages([{
       role:    'assistant',
-      content: `Hey ${userName}! 👋 I'm Alex, your AI career coach.\n\nI know your profile — ${user?.title || 'you'} with skills in ${(user?.skills||[]).slice(0,3).join(', ') || 'your field'}. I'm here to give you brutally honest, specific career advice.\n\nWhat's on your mind? Salary negotiation, interview prep, career pivot, CV review — I've got you.`,
+      content: `Hey ${userName}!  I'm Alex, your AI career coach.\n\nI know your profile — ${user?.title || 'you'} with skills in ${(user?.skills||[]).slice(0,3).join(', ') || 'your field'}. I'm here to give you brutally honest, specific career advice.\n\nWhat's on your mind? Salary negotiation, interview prep, career pivot, CV review — I've got you.`,
       time: now(),
     }]);
   }, []);

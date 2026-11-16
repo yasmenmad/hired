@@ -10,6 +10,8 @@ const TABS = [
   {id:'chat',      label:'Chat'},
   {id:'test',      label:'Test'},
   {id:'salary',    label:'Salary'},
+  {id:'network',   label:'Network'},
+  {id:'roadmap',   label:'Roadmap'},
 ];
 
 const NOTIFS = [
@@ -19,7 +21,7 @@ const NOTIFS = [
   {t:'New feature',         d:'Salary AI v2 now available',            time:'1d',  dot:'var(--p500)',  unread:false},
 ];
 
-export default function AppNav({ activeTab, onTabChange, onExit, isAdmin=false, userName='Yasmine Daoudi', dark, onToggleDark }) {
+export default function AppNav({ activeTab, onTabChange, onExit, isAdmin=false, adminMode=true, onToggleAdminMode=null, userName='Yasmine Daoudi', dark, onToggleDark }) {
   const [dropdown,  setDropdown]  = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [read,      setRead]      = useState(false);
@@ -63,7 +65,7 @@ export default function AppNav({ activeTab, onTabChange, onExit, isAdmin=false, 
       </div>
 
       {/* Tabs */}
-      {!isAdmin ? (
+      {(!isAdmin || !adminMode) ? (
         TABS.map(t=>(
           <button key={t.id} onClick={()=>onTabChange(t.id)}
             className={`a-tab${activeTab===t.id?' on':''}`}
@@ -81,9 +83,24 @@ export default function AppNav({ activeTab, onTabChange, onExit, isAdmin=false, 
           </button>
         ))
       ) : (
-        <div style={{display:'flex',alignItems:'center',gap:7,padding:'5px 14px',borderRadius:9,background:'var(--p100)',border:'1.5px solid var(--p200)'}}>
-          <span style={{width:6,height:6,borderRadius:'50%',background:'var(--green)',display:'inline-block',animation:'pulse 2s ease-in-out infinite'}}/>
-          <span style={{fontSize:12.5,fontWeight:700,color:'var(--p600)',letterSpacing:'.01em'}}>Admin Console</span>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div style={{display:'flex',alignItems:'center',gap:7,padding:'5px 14px',borderRadius:9,background:'var(--p100)',border:'1.5px solid var(--p200)'}}>
+            <span style={{width:6,height:6,borderRadius:'50%',background:'var(--green)',display:'inline-block',animation:'pulse 2s ease-in-out infinite'}}/>
+            <span style={{fontSize:12.5,fontWeight:700,color:'var(--p600)',letterSpacing:'.01em'}}>Admin Console</span>
+          </div>
+          {onToggleAdminMode && (
+            <button onClick={onToggleAdminMode}
+              title={adminMode ? 'Preview user interface' : 'Back to Admin Console'}
+              style={{padding:'5px 11px',borderRadius:9,border:'1.5px solid var(--faint)',background:adminMode?'transparent':'var(--p100)',cursor:'pointer',fontSize:11.5,fontWeight:700,color:adminMode?'var(--muted)':'var(--p600)',fontFamily:'var(--sans)',display:'flex',alignItems:'center',gap:5,transition:'all .15s'}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--p300)';e.currentTarget.style.color='var(--p600)';}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--faint)';e.currentTarget.style.color=adminMode?'var(--muted)':'var(--p600)';}}>
+              {adminMode ? (
+                <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Preview User View</>
+              ) : (
+                <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> Back to Admin</>
+              )}
+            </button>
+          )}
         </div>
       )}
 

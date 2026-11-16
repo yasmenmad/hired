@@ -1,0 +1,41 @@
+{
+  "nav": {
+    "browseJobs": "Browse Jobs",
+    "salaryData": "Salary Data",
+    "blog": "Blog",
+    "howItWorks": "How It Works",
+    "faq": "FAQ",
+    "signIn": "Sign In",
+    "getStarted": "Get Started Free",
+    "moroccoMode": "Morocco Mode",
+    "language": "EN"
+  },
+  "hero": {
+    "badge": "AI-Powered · 42,391 Live Jobs",
+    "title": "Land your dream job — 3× faster.",
+    "subtitle": "AI-powered matching, CV optimization, interview coaching, and salary intelligence — all in one platform.",
+    "searchPlaceholder": "Role, skill, or keyword…",
+    "searchBtn": "Search",
+    "trending": "Trending:",
+    "hired": "professionals hired this year"
+  },
+  "stats": {
+    "liveJobs": "Live Jobs",
+    "companies": "Companies",
+    "accuracy": "Match Accuracy",
+    "hiring": "Faster Hiring"
+  },
+  "jobs": {
+    "title": "Browse Live Jobs",
+    "subtitle": "Click any job to see full details",
+    "filter": "Filter:",
+    "noJobs": "No jobs match",
+    "clearAll": "Clear filters",
+    "browseAll": "Browse all 42,391 jobs — Sign up free",
+    "applyNow": "Apply Now — Create Free Account",
+    "save": "Save",
+    "posted": "Posted",
+    "ago": "ago",
+    "match": "match"
+  }
+}

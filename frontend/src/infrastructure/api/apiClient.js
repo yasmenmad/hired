@@ -73,7 +73,7 @@ export const auth = {
     } catch {
       // Admin shortcut
       if (email === 'admin@hired.ai' && password === 'admin123') {
-        const user = { id: 'admin_1', email, name: 'Admin', role: 'admin' };
+        const user = { id: 'admin_1', email, name: 'Admin', role: 'admin', is_admin: true, plan: 'Pro' };
         const token = makeMockToken(email);
         setToken(token); setUser(user);
         return { token, user };
@@ -208,6 +208,13 @@ export const ai = {
     return apiFetch('/ai/match', {
       method: 'POST',
       body: JSON.stringify({ user_profile: userProfile, job }),
+    });
+  },
+
+  async generateCV(profile) {
+    return apiFetch('/ai/cv/generate', {
+      method: 'POST',
+      body: JSON.stringify(profile),
     });
   },
 

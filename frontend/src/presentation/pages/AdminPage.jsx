@@ -209,12 +209,12 @@ const HEALTH=[
 ];
 
 const ACTIVITY=[
-  {icon:'★', text:'Yasmine D. accepted offer at AstroAI',  sub:'AI Engineer · $155k',           time:'2m',  color:'var(--green)'},
+  {icon:'*', text:'Yasmine D. accepted offer at AstroAI',  sub:'AI Engineer · $155k',           time:'2m',  color:'var(--green)'},
   {icon:'CV',text:'Karim B. CV optimized',                 sub:'62% → 91% ATS score',           time:'4m',  color:'var(--p500)'},
   {icon:'AI',text:'847 new AI matches computed',            sub:'Avg match score: 87%',           time:'8m',  color:'var(--amber)'},
   {icon:'+', text:'Nora El Fassi signed up',               sub:'Candidate · Pro plan',            time:'12m', color:'#2563eb'},
   {icon:'JB',text:'Anthropic posted 3 new roles',          sub:'Senior Engineer ×2, PM ×1',      time:'18m', color:'#dc2626'},
-  {icon:'★', text:'Platform rated 5★ by Sara T.',         sub:'"Best career tool I have used"',  time:'31m', color:'var(--green)'},
+  {icon:'*', text:'Platform rated 5* by Sara T.',         sub:'"Best career tool I have used"',  time:'31m', color:'var(--green)'},
   {icon:'CV',text:'Mehdi L. interview score: 94%',         sub:'Strong Hire verdict',             time:'44m', color:'var(--p500)'},
   {icon:'$', text:'Salary negotiation: +$22k',             sub:'Priya K. accepted counter-offer', time:'58m', color:'var(--green)'},
 ];

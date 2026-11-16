@@ -1,7 +1,33 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { jobs as jobsApi, ai, applications as appsApi, checkBackend } from '../../infrastructure/api/apiClient';
 import Modal from '../components/common/Modal';
 
+/* Converts raw HTML job descriptions into clean, safe HTML for rendering */
+function cleanJobHtml(raw = '') {
+  if (!raw) return '';
+  // Step 1: Decode HTML entities (handles double-escaped HTML like &lt;div&gt;)
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = raw;
+  let decoded = textarea.value;
+  // Step 2: If still no real HTML tags after decode, check again
+  if (!decoded.includes('<')) {
+    // Pure plain text — preserve newlines as <br>
+    return decoded.replace(/&amp;/g, '&').replace(/\n/g, '<br/>');
+  }
+  // Step 3: Strip dangerous/structural wrapper tags but keep content tags
+  let html = decoded
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/on\w+="[^"]*"/gi, '')
+    .replace(/on\w+='[^']*'/gi, '')
+    .replace(/href\s*=\s*["']javascript:[^"']*/gi, 'href="#"');
+  // Step 4: Collapse redundant whitespace
+  html = html.replace(/>\s{3,}</g, '><').trim();
+  return html;
+}
+
+/* Strip all HTML for plain text uses */
 function decodeHtml(raw = '') {
   if (!raw) return '';
   let text = raw.replace(/<[^>]*>/g, ' ');
@@ -33,6 +59,18 @@ function CoLogo({ name='', size=42, logoUrl='' }) {
   const c = CO_COLORS[name]||'#6247d4';
   if (logoUrl && !imgErr) return <img src={logoUrl} alt={name} onError={()=>setImgErr(true)} style={{width:size,height:size,borderRadius:Math.round(size*.24),objectFit:'contain',background:'#f5f5f5',padding:3,flexShrink:0}}/>;
   return <div style={{width:size,height:size,borderRadius:Math.round(size*.24),background:c,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--serif)',fontSize:Math.floor(size*.35),fontWeight:800,color:'#fff',flexShrink:0}}>{(name||'?').slice(0,2).toUpperCase()}</div>;
+}
+
+/* Deterministic per-job score: hashes job ID + attributes for a unique 55-97% range */
+function calcJobScore(job){
+  if(job.match_score&&job.match_score!==80)return job.match_score;
+  // Hash the job id for stability
+  let h=0;
+  const s=(job.id||'')+(job.title||'');
+  for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}
+  const base=Math.abs(h)%43; // 0-42
+  const bonus=(job.remote?5:0)+(job.salary?4:0)+(job.skills?.length>3?5:0)+(job.level==='Senior'?3:job.level==='Junior'?-3:0);
+  return Math.min(97,Math.max(55,55+base+bonus));
 }
 
 function MatchScore({score}){
@@ -80,6 +118,9 @@ export default function JobsPage({toast,user}){
   const [sumLoad,setSumLoad]=useState(false);
   const [coDetails,setCoDetails]=useState(null);
   const [coLoad,setCoLoad]=useState(false);
+  /* Live AI match scores: jobId -> score */
+  const [aiScores,setAiScores]=useState({});
+  const scoringRef=useRef(new Set());
 
   const fetchJobs=useCallback(async(pg=1,q='',f='All',src='All')=>{
     setLoading(true);
@@ -155,7 +196,7 @@ export default function JobsPage({toast,user}){
     setSaved(prev=>{const n=new Set(prev);willSave?n.add(id):n.delete(id);return n;});
     const cur=getSavedJobs();
     if(willSave){
-      persistSavedJobs([...cur.filter(j=>j.id!==id),{id:job.id,title:job.title,company:job.company,location:job.location,salary:job.salary,source:job.source,apply_url:job.apply_url,match_score:job.match_score||80,savedAt:new Date().toISOString()}]);
+      persistSavedJobs([...cur.filter(j=>j.id!==id),{id:job.id,title:job.title,company:job.company,location:job.location,salary:job.salary,source:job.source,apply_url:job.apply_url,match_score:getScore(job),savedAt:new Date().toISOString()}]);
       appsApi.create({jobId:job.id,status:'saved'}).catch(()=>{});
       toast('Saved to Tracker — visible in Kanban board');
     } else {
@@ -164,7 +205,21 @@ export default function JobsPage({toast,user}){
     }
   }
 
+  /* Fire AI match in background when a job is selected */
+  useEffect(()=>{
+    if(!selId||!backendOk)return;
+    const job=jobsList.find(j=>j.id===selId);
+    if(!job||scoringRef.current.has(selId))return;
+    scoringRef.current.add(selId);
+    const userProfile={name:user?.name||'Candidate',title:user?.title||'Software Engineer',skills:user?.skills||[],bio:user?.bio||'',location:user?.location||''};
+    ai.matchScore(userProfile,job)
+      .then(r=>{ if(r?.score)setAiScores(prev=>({...prev,[selId]:r.score})); })
+      .catch(()=>{});
+  },[selId,backendOk,jobsList,user]);
+
   const sel=selId?jobsList.find(j=>j.id===selId):null;
+  /* Resolve score: AI result > job field > deterministic hash */
+  const getScore=(job)=>aiScores[job.id]||calcJobScore(job);
 
   return(
     <div style={{flex:1,display:'flex',overflow:'hidden'}}>
@@ -221,7 +276,7 @@ export default function JobsPage({toast,user}){
                   </div>
                 </div>
                 <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:5,flexShrink:0}}>
-                  <MatchScore score={j.match_score||80}/>
+                  <MatchScore score={getScore(j)}/>
                   <button onClick={e=>{e.stopPropagation();toggleSave(j);}} title={saved.has(j.id)?'Remove from saved':'Save to Tracker'}
                     style={{width:24,height:24,borderRadius:6,border:'1px solid var(--faint)',background:saved.has(j.id)?'var(--p50)':'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
                     <IcBookmark filled={saved.has(j.id)}/>
@@ -270,8 +325,8 @@ export default function JobsPage({toast,user}){
                   </div>
                 </div>
                 <div style={{textAlign:'right',flexShrink:0}}>
-                  <div style={{fontFamily:'var(--serif)',fontSize:44,fontWeight:900,color:'#fff',letterSpacing:-2,lineHeight:1}}>{sel.match_score||80}%</div>
-                  <div style={{fontSize:10.5,color:'rgba(255,255,255,.5)',fontWeight:600}}>AI Match</div>
+                  <div style={{fontFamily:'var(--serif)',fontSize:44,fontWeight:900,color:'#fff',letterSpacing:-2,lineHeight:1}}>{getScore(sel)}%</div>
+                  <div style={{fontSize:10.5,color:'rgba(255,255,255,.5)',fontWeight:600}}>{aiScores[sel.id]?'AI Match':'Est. Match'}</div>
                 </div>
               </div>
             </div>
@@ -302,9 +357,14 @@ export default function JobsPage({toast,user}){
               <>
                 <div className="card" style={{marginBottom:12}}>
                   <div style={{fontSize:10,fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--p500)',marginBottom:10}}>About the Role</div>
-                  <p style={{fontSize:13.5,color:'var(--ink2)',lineHeight:1.8,whiteSpace:'pre-wrap',margin:0}}>
-                    {decodeHtml(sel.description)||'No description available. Click "Original Post" to see full listing.'}
-                  </p>
+                  {sel.description
+                    ? <div
+                        dangerouslySetInnerHTML={{ __html: cleanJobHtml(sel.description) }}
+                        style={{fontSize:13.5,color:'var(--ink2)',lineHeight:1.8,maxWidth:'100%',overflowX:'hidden'}}
+                        className="job-desc-html"
+                      />
+                    : <p style={{fontSize:13.5,color:'var(--muted)',margin:0}}>No description available. Click "Original Post" to see full listing.</p>
+                  }
                 </div>
                 {sel.skills?.length>0&&(
                   <div className="card">
@@ -320,8 +380,8 @@ export default function JobsPage({toast,user}){
             {/* AI Summary */}
             {detTab==='summary'&&(
               <div className="card">
-                <div style={{fontSize:10,fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--p500)',marginBottom:14,display:'flex',alignItems:'center',gap:6}}><IcBrain/>Groq AI Analysis</div>
-                {sumLoad&&<div style={{padding:'24px 0',textAlign:'center',color:'var(--muted)',fontSize:13,animation:'pulse 1.5s ease-in-out infinite'}}>Analysing with Groq llama-3.3-70b…</div>}
+                <div style={{fontSize:10,fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--p500)',marginBottom:14,display:'flex',alignItems:'center',gap:6}}><IcBrain/>AI Job Analysis</div>
+                {sumLoad&&<div style={{padding:'24px 0',textAlign:'center',color:'var(--muted)',fontSize:13,animation:'pulse 1.5s ease-in-out infinite'}}>Analysing job with AI…</div>}
                 {!sumLoad&&!summary&&<div style={{color:'var(--muted)',fontSize:13}}>Click "AI Summary" above to analyse this job.</div>}
                 {summary&&(
                   <div style={{display:'flex',flexDirection:'column',gap:14}}>
@@ -363,11 +423,11 @@ export default function JobsPage({toast,user}){
               </div>
             )}
 
-            {/* Company — real Groq */}
+            {/* Company Intelligence */}
             {detTab==='company'&&(
               <div className="card">
-                <div style={{fontSize:10,fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--p500)',marginBottom:14,display:'flex',alignItems:'center',gap:6}}><IcBuilding/>Company Intelligence — Groq AI</div>
-                {coLoad&&<div style={{padding:'24px 0',textAlign:'center',color:'var(--muted)',fontSize:13,animation:'pulse 1.5s ease-in-out infinite'}}>Loading company details via Groq…</div>}
+                <div style={{fontSize:10,fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--p500)',marginBottom:14,display:'flex',alignItems:'center',gap:6}}><IcBuilding/>Company Intelligence</div>
+                {coLoad&&<div style={{padding:'24px 0',textAlign:'center',color:'var(--muted)',fontSize:13,animation:'pulse 1.5s ease-in-out infinite'}}>Loading company details…</div>}
                 {!coLoad&&!coDetails&&<div style={{color:'var(--muted)',fontSize:13}}>Click "Company" tab to load real details.</div>}
                 {coDetails&&(
                   <div style={{display:'flex',flexDirection:'column',gap:14}}>
@@ -400,7 +460,7 @@ export default function JobsPage({toast,user}){
                     )}
                     {coDetails.glassdoor_rating&&(
                       <div style={{display:'flex',alignItems:'center',gap:8,padding:'12px 16px',background:'var(--p25)',borderRadius:12,border:'1px solid var(--p100)'}}>
-                        <span style={{fontSize:22,fontWeight:900,fontFamily:'var(--serif)',color:'var(--green)'}}>{'★'.repeat(Math.round(coDetails.glassdoor_rating))}</span>
+                        <span style={{fontSize:22,fontWeight:900,fontFamily:'var(--serif)',color:'var(--green)'}}>{'*'.repeat(Math.round(coDetails.glassdoor_rating))}</span>
                         <div><div style={{fontSize:14,fontWeight:800,color:'var(--ink)'}}>{coDetails.glassdoor_rating}/5</div><div style={{fontSize:11,color:'var(--muted)'}}>Glassdoor (AI estimate)</div></div>
                       </div>
                     )}
@@ -415,9 +475,9 @@ export default function JobsPage({toast,user}){
 
       {/* Cover Letter Modal */}
       {modal==='cover'&&sel&&(
-        <Modal title={`Cover Letter — ${sel.title}`} subtitle={`Generated by Groq AI for ${sel.company}`} onClose={()=>setModal(null)}
+        <Modal title={`Cover Letter — ${sel.title}`} subtitle={`AI-generated for ${sel.company}`} onClose={()=>setModal(null)}
           footer={<><button className="btn btn-ghost" onClick={()=>setModal(null)}>Close</button>{!coverGen&&<button className="btn btn-primary" style={{display:'flex',alignItems:'center',gap:6}} onClick={()=>{navigator.clipboard?.writeText(coverTxt);toast('Cover letter copied!');}}>Copy</button>}</>}>
-          {coverGen?<div style={{textAlign:'center',padding:'32px 0',color:'var(--muted)',fontSize:13,animation:'pulse 1.5s ease-in-out infinite'}}>Generating with Groq AI…</div>
+          {coverGen?<div style={{textAlign:'center',padding:'32px 0',color:'var(--muted)',fontSize:13,animation:'pulse 1.5s ease-in-out infinite'}}>Generating cover letter…</div>
             :<textarea value={coverTxt} onChange={e=>setCoverTxt(e.target.value)} style={{width:'100%',minHeight:260,background:'var(--p25)',border:'1.5px solid var(--faint)',borderRadius:10,padding:'14px 16px',fontSize:13,color:'var(--ink)',lineHeight:1.75,fontFamily:'var(--sans)',resize:'vertical',outline:'none'}}/>}
         </Modal>
       )}

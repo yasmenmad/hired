@@ -1,0 +1,41 @@
+{
+  "nav": {
+    "browseJobs": "Parcourir",
+    "salaryData": "Salaires",
+    "blog": "Blog",
+    "howItWorks": "Comment ça marche",
+    "faq": "FAQ",
+    "signIn": "Se connecter",
+    "getStarted": "Démarrer",
+    "moroccoMode": "Mode Maroc",
+    "language": "FR"
+  },
+  "hero": {
+    "badge": "L'IA des talents · 42,391 offres",
+    "title": "Décrochez le job de vos rêves — 3× plus vite.",
+    "subtitle": "Matching par IA, optimisation de CV, préparation aux entretiens et données salariales — sur une seule plateforme.",
+    "searchPlaceholder": "Poste, compétence, ou mot-clé…",
+    "searchBtn": "Rechercher",
+    "trending": "Tendances:",
+    "hired": "professionnels recrutés cette année"
+  },
+  "stats": {
+    "liveJobs": "Offres Actives",
+    "companies": "Entreprises",
+    "accuracy": "Précision RH",
+    "hiring": "Recrutement Accéléré"
+  },
+  "jobs": {
+    "title": "Offres d'Emploi Actives",
+    "subtitle": "Cliquez sur l'offre pour voir les détails",
+    "filter": "Filtre:",
+    "noJobs": "Aucune offre ne correspond",
+    "clearAll": "Effacer les filtres",
+    "browseAll": "Parcourir les 42,391 offres — Inscription gratuite",
+    "applyNow": "Postuler — Créer un Compte",
+    "save": "Sauvegarder",
+    "posted": "Publié il y a",
+    "ago": "",
+    "match": "match"
+  }
+}

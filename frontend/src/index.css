@@ -310,6 +310,18 @@ body.dark .f-chip:hover { background:var(--p100); color:var(--p300); border-colo
 body.dark .jl-item:hover { background:var(--faint) }
 body.dark .jl-item.active { background:var(--p50); border-left-color:var(--p400) }
 
+/* ── Job description HTML rendering ─────────────────────────── */
+.job-desc-html { font-size:13.5px; color:var(--ink2); line-height:1.8 }
+.job-desc-html p { margin:0 0 10px }
+.job-desc-html ul, .job-desc-html ol { padding-left:20px; margin:0 0 10px }
+.job-desc-html li { margin-bottom:5px }
+.job-desc-html h1,.job-desc-html h2,.job-desc-html h3,.job-desc-html h4 {
+  font-family:var(--serif); font-weight:700; margin:14px 0 6px; color:var(--ink)
+}
+.job-desc-html b, .job-desc-html strong { font-weight:700; color:var(--ink) }
+.job-desc-html a { color:var(--p500); text-decoration:none }
+.job-desc-html br + br { display:none } /* collapse double line-breaks */
+
 
 /* ── Extra keyframes ──────────────────────────────────────────── */
 @keyframes floatP    { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-14px) scale(1.05)} }
@@ -322,3 +334,33 @@ body.dark .jl-item.active { background:var(--p50); border-left-color:var(--p400)
 
 /* ── Syne utility (maps to existing --serif) ──────────────────── */
 .syne { font-family: var(--serif) }
+
+/* ── Morocco Mode (Red/Green Theme) ─────────────────────────── */
+body.morocco-mode-active {
+  --p900:#260a0a; --p800:#421111; --p700:#601515; --p600:#8f1d1d;
+  --p500:#c53030; --p400:#f56565; --p300:#fc8181; --p200:#feb2b2;
+  --p100:#fed7d7; --p50:#fff5f5;  --p25:#fffafa;
+  --bg: #fffbfb;
+}
+
+body.dark.morocco-mode-active {
+  --p900:#0f0404; --p800:#1f0606; --p700:#300a0a; --p600:#450b0b;
+  --p500:#741b1b; --p400:#9b2c2c; --p300:#c53030; --p200:#e53e3e;
+  --p100:#f56565; --p50:#fc8181;  --p25:#250f0f;
+  --bg: #0a0303;
+}
+
+/* ── RTL Localization ───────────────────────────────────────── */
+[dir="rtl"] {
+  text-align: right;
+}
+[dir="rtl"] .modal {
+  text-align: right;
+}
+[dir="rtl"] .btn {
+  flex-direction: row-reverse;
+}
+[dir="rtl"] .table-base th,
+[dir="rtl"] .table-base td {
+  text-align: right;
+}

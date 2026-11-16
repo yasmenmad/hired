@@ -6,7 +6,7 @@ export const JOB_SEED_DATA = [
     description:'Build and ship production AI systems powering the next generation of intelligent software. Work with a world-class research team on LLM fine-tuning, RLHF pipelines, and inference optimization. This is a senior IC role with direct impact on AstroAI flagship products used by millions.',
     skills:['Python','PyTorch','LLM Finetuning','RLHF','MLOps','Kubernetes','Vector DB'],
     matchReasons:['Skills match: Python, PyTorch, RLHF','Location: Remote-friendly','Seniority: Senior level fit','Salary: Within your target range'],
-    aboutCompany:'AstroAI is a Series B AI company ($120M raised) building the next generation of intelligent software infrastructure. Rated 4.7★ on Glassdoor.',
+    aboutCompany:'AstroAI is a Series B AI company ($120M raised) building the next generation of intelligent software infrastructure. Rated 4.7* on Glassdoor.',
     color:'#5835d4'
   },
   {
@@ -16,7 +16,7 @@ export const JOB_SEED_DATA = [
     description:'Own the product roadmap for Stripe EMEA market expansion. Work closely with engineering, design, and sales to ship features that help European businesses accept payments. You will be the voice of the customer in a fast-moving, high-autonomy environment.',
     skills:['Product Strategy','SQL','A/B Testing','Stakeholder Management','Fintech'],
     matchReasons:['Skills: Product Strategy, SQL match','Location: EU-based role','Level: Mid-level fit','Growth stage: Matches preference'],
-    aboutCompany:'Stripe is a Pre-IPO fintech giant ($2.2B ARR) building global economic infrastructure. 4.2★ Glassdoor.',
+    aboutCompany:'Stripe is a Pre-IPO fintech giant ($2.2B ARR) building global economic infrastructure. 4.2* Glassdoor.',
     color:'#635BFF'
   },
   {

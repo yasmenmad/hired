@@ -10,19 +10,24 @@ import TestPage      from './TestPage';
 import SalaryPage    from './SalaryPage';
 import ProfilePage   from './ProfilePage';
 import AdminPage     from './AdminPage';
+import NetworkPage   from './NetworkPage';
+import RoadmapPage   from './RoadmapPage';
 
 export default function AppShell({ onExit, toast, user, setUser }) {
-  const isAdmin = user?.is_admin || false;
-  const [tab,  setTab]  = useState(isAdmin ? 'admin' : 'jobs');
-  const [dark, setDark] = useState(false);
+  const isAdmin     = user?.is_admin === true || user?.role === 'admin';
+  const [tab,       setTab]       = useState('jobs');
+  const [dark,      setDark]      = useState(false);
+  const [adminMode, setAdminMode] = useState(true); // admin can toggle to preview user view
 
   useEffect(() => {
     document.body.classList.toggle('dark', dark);
     return () => document.body.classList.remove('dark');
   }, [dark]);
 
+  const showAdminPanel = isAdmin && adminMode;
+
   const page = () => {
-    if (isAdmin) return <AdminPage toast={toast} onExit={onExit}/>;
+    if (showAdminPanel) return <AdminPage toast={toast} onExit={onExit}/>;
     switch(tab) {
       case 'jobs':      return <JobsPage      toast={toast} user={user}/>;
       case 'cv':        return <CVPage        toast={toast} user={user}/>;
@@ -33,6 +38,8 @@ export default function AppShell({ onExit, toast, user, setUser }) {
       case 'test':      return <TestPage      toast={toast}/>;
       case 'salary':    return <SalaryPage    toast={toast} user={user}/>;
       case 'profile':   return <ProfilePage   toast={toast} user={user} setUser={setUser}/>;
+      case 'network':   return <NetworkPage   toast={toast} user={user}/>;
+      case 'roadmap':   return <RoadmapPage   toast={toast} user={user}/>;
       default:          return <JobsPage      toast={toast} user={user}/>;
     }
   };
@@ -40,10 +47,12 @@ export default function AppShell({ onExit, toast, user, setUser }) {
   return (
     <div style={{display:'flex',flexDirection:'column',height:'100vh',overflow:'hidden',position:'fixed',inset:0,background:'var(--bg)'}}>
       <AppNav
-        activeTab={isAdmin?'admin':tab}
-        onTabChange={isAdmin?()=>{}:setTab}
+        activeTab={showAdminPanel ? 'admin' : tab}
+        onTabChange={showAdminPanel ? ()=>{} : (t)=>{ if(t!=='admin') setTab(t); }}
         onExit={onExit}
         isAdmin={isAdmin}
+        adminMode={adminMode}
+        onToggleAdminMode={isAdmin ? ()=>setAdminMode(m=>!m) : null}
         userName={user?.name||'User'}
         dark={dark}
         onToggleDark={()=>setDark(d=>!d)}

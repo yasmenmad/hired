@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #1a1a2e;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #avatar {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="avatar"></div>
+  <script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+    "talkinghead": "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/modules/talkinghead.mjs"
+  }
+}
+</script>
+  <script type="module">
+    import { TalkingHead } from "talkinghead";
+
+    const nodeAvatar = document.getElementById('avatar');
+
+    const head = new TalkingHead(nodeAvatar, {
+      cameraView: "upper",
+      cameraDistance: 0,
+      cameraY: 0.1,
+      lightAmbientIntensity: 2,
+      lightDirectIntensity: 30,
+      avatarMood: "neutral",
+      lipsyncModules: ["en"],
+      lipsyncLang: "en",
+      modelFPS: 30,
+      cameraRotateEnable: false,
+      cameraPanEnable: false,
+      cameraZoomEnable: false,
+    });
+
+    try {
+      await head.showAvatar({
+        url: "/models/avatar.glb",
+        body: "F",
+        avatarMood: "neutral",
+        lipsyncLang: "en",
+      });
+      console.log("✅ Avatar loaded");
+    } catch (e) {
+      console.error("❌ Avatar failed:", e);
+    }
+
+    const moodMap = {
+      smile: "happy",
+      sad: "sad",
+      angry: "angry",
+      surprised: "happy",
+      funnyFace: "happy",
+      default: "neutral",
+    };
+
+    window.addEventListener("message", (event) => {
+      const { type, text, facialExpression } = event.data;
+
+      if (type === "speak" && text) {
+        const mood = moodMap[facialExpression] || "neutral";
+        head.setMood(mood);
+
+        const sampleRate = 22050;
+        const words = text.split(" ");
+
+        // Use actual speech duration that matches Web Speech API timing
+        // We slightly overestimate the duration (using 130 wpm instead of 150)
+        // because the overarching onend event from Web Speech API will cleanly and instantly stop the animation.
+        // This ensures the lips don't stop prematurely before the voice finishes.
+        const estimatedDuration = Math.max(1, (words.length / 130) * 60);
+        const numSamples = Math.ceil(sampleRate * estimatedDuration);
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const audioBuffer = audioCtx.createBuffer(1, numSamples, sampleRate);
+
+        const wordDuration = (estimatedDuration * 1000) / words.length;
+        const wtimes = words.map((_, i) => i * wordDuration);
+        const wdurations = words.map(() => wordDuration * 0.9);
+
+        head.speakAudio({
+          audio: audioBuffer,
+          words,
+          wtimes,
+          wdurations,
+        }, { lipsyncLang: "en" });
+      }
+
+      // Called from React when Web Speech API fires onend
+      if (type === "stop") {
+        head.speakMarker(() => { });  // flush queue
+        
+        // Forcefully clear the TalkingHead internal queues to stop lip-sync instantly
+        if (head.speechQueue) head.speechQueue = [];
+        if (head.audioPlaylist) head.audioPlaylist = [];
+        try {
+            if (head.audioSpeechSource) head.audioSpeechSource.stop();
+        } catch (e) { /* ignore if already stopped */ }
+        head.isSpeaking = false;
+        
+        // Purge animQueue of ANY animation that targets visemes
+        if (head.animQueue) {
+            head.animQueue = head.animQueue.filter(anim => {
+                if (anim.template && anim.template.name === "lipsync") return false;
+                if (anim.vs && Object.keys(anim.vs).some(k => k.startsWith("viseme_"))) return false;
+                return true;
+            });
+        }
+        
+        // Face reset
+        const visemes = ['aa', 'E', 'I', 'O', 'U', 'PP', 'SS', 'TH', 'DD', 'FF', 'kk', 'nn', 'RR', 'CH', 'sil'];
+        visemes.forEach(v => {
+            const m = head?.mtAvatar?.['viseme_' + v];
+            if (m) {
+                m.value = 0; m.applied = 0; m.newvalue = 0; m.needsUpdate = true;
+            }
+        });
+        
+        head.setMood("neutral");
+        head.stopAnimation?.();
+      }
+
+      if (type === "mood") {
+        head.setMood(moodMap[event.data.mood] || "neutral");
+      }
+    });
+  </script>
+</body>
+
+</html>
