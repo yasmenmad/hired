@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sara 3D Avatar Engine</title>
   <style>
     * {
       margin: 0;
@@ -12,49 +13,75 @@
     }
 
     body {
-      background: #1a1a2e;
+      background: #141726;
       overflow: hidden;
       width: 100vw;
       height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     #avatar {
       width: 100%;
       height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
     }
   </style>
 </head>
 
 <body>
   <div id="avatar"></div>
+
   <script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
-    "talkinghead": "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/modules/talkinghead.mjs"
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+      "talkinghead": "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/modules/talkinghead.mjs",
+      "lipsync-en": "./lipsync-en.mjs"
+    }
   }
-}
-</script>
+  </script>
+
   <script type="module">
     import { TalkingHead } from "talkinghead";
+    import { LipsyncEn } from "lipsync-en";
 
     const nodeAvatar = document.getElementById('avatar');
 
     const head = new TalkingHead(nodeAvatar, {
       cameraView: "upper",
-      cameraDistance: 0,
-      cameraY: 0.1,
-      lightAmbientIntensity: 2,
-      lightDirectIntensity: 30,
+      cameraDistance: 0.05,
+      cameraY: 0.08,
+      lightAmbientIntensity: 2.5,
+      lightDirectIntensity: 28,
       avatarMood: "neutral",
       lipsyncModules: ["en"],
       lipsyncLang: "en",
+      avatarIdleEyeContact: 0.7,
+      avatarIdleHeadMove: 0.5,
+      avatarSpeakingHeadMove: 0.8,
+      avatarSpeakingEyeContact: 0.85,
       modelFPS: 30,
       cameraRotateEnable: false,
       cameraPanEnable: false,
       cameraZoomEnable: false,
     });
+
+    // Explicitly inject the English lipsync processor to bypass dynamic resolution
+    try {
+      head.lipsync = head.lipsync || {};
+      head.lipsync['en'] = new LipsyncEn();
+    } catch (e) {
+      console.warn("Explicit LipsyncEn instantiation warning:", e);
+    }
+
+    let avatarLoaded = false;
+    let mouthAnimationId = null;
+    let isSpeakingActive = false;
 
     try {
       await head.showAvatar({
@@ -63,13 +90,15 @@
         avatarMood: "neutral",
         lipsyncLang: "en",
       });
-      console.log(" Avatar loaded");
+      avatarLoaded = true;
+      console.log("Sara 3D Avatar loaded successfully");
     } catch (e) {
-      console.error(" Avatar failed:", e);
+      console.error("Sara 3D Avatar failed to load:", e);
     }
 
     const moodMap = {
       smile: "happy",
+      happy: "happy",
       sad: "sad",
       angry: "angry",
       surprised: "happy",
@@ -77,70 +106,125 @@
       default: "neutral",
     };
 
+    const visemeKeys = [
+      'viseme_aa', 'viseme_E', 'viseme_I', 'viseme_O', 'viseme_U',
+      'viseme_PP', 'viseme_SS', 'viseme_TH', 'viseme_DD', 'viseme_FF'
+    ];
+
+    function stopMouthLoop() {
+      isSpeakingActive = false;
+      if (mouthAnimationId) {
+        cancelAnimationFrame(mouthAnimationId);
+        mouthAnimationId = null;
+      }
+      // Reset visemes smoothly
+      visemeKeys.forEach(v => {
+        const m = head?.mtAvatar?.[v];
+        if (m) {
+          m.value = 0;
+          m.applied = 0;
+          m.newvalue = 0;
+          m.needsUpdate = true;
+        }
+      });
+    }
+
+    function startMouthLoop() {
+      stopMouthLoop();
+      isSpeakingActive = true;
+      let startTime = performance.now();
+
+      function step(now) {
+        if (!isSpeakingActive) return;
+        const elapsed = (now - startTime) / 1000;
+
+        // Complex multi-frequency syllable pattern matching natural speech
+        const syllable1 = Math.max(0, Math.sin(elapsed * 12));
+        const syllable2 = Math.max(0, Math.sin(elapsed * 7.5 + 0.4));
+        const syllable3 = Math.max(0, Math.sin(elapsed * 16.2 + 1.2));
+        const mouthOpen = (syllable1 * 0.45 + syllable2 * 0.35 + syllable3 * 0.2);
+
+        // Modulate distinct phonemes
+        if (head?.mtAvatar) {
+          if (head.mtAvatar['viseme_aa']) {
+            head.mtAvatar['viseme_aa'].value = mouthOpen * 0.8;
+            head.mtAvatar['viseme_aa'].needsUpdate = true;
+          }
+          if (head.mtAvatar['viseme_O']) {
+            head.mtAvatar['viseme_O'].value = Math.max(0, Math.sin(elapsed * 8.3)) * 0.5;
+            head.mtAvatar['viseme_O'].needsUpdate = true;
+          }
+          if (head.mtAvatar['viseme_I']) {
+            head.mtAvatar['viseme_I'].value = Math.max(0, Math.cos(elapsed * 10.1)) * 0.4;
+            head.mtAvatar['viseme_I'].needsUpdate = true;
+          }
+        }
+
+        mouthAnimationId = requestAnimationFrame(step);
+      }
+
+      mouthAnimationId = requestAnimationFrame(step);
+    }
+
+    function unlockAudio() {
+      if (head?.audioCtx && (head.audioCtx.state === 'suspended' || head.audioCtx.state === 'interrupted')) {
+        head.audioCtx.resume().catch(() => {});
+      }
+    }
+
+    window.addEventListener('pointerdown', unlockAudio);
+    window.addEventListener('click', unlockAudio);
+
     window.addEventListener("message", (event) => {
-      const { type, text, facialExpression } = event.data;
+      const data = event.data || {};
+      const { type, text, facialExpression } = data;
+
+      unlockAudio();
 
       if (type === "speak" && text) {
         const mood = moodMap[facialExpression] || "neutral";
         head.setMood(mood);
+        try { head.lookAtCamera(400); } catch (e) {}
+        try { head.speakWithHands(); } catch (e) {}
 
-        const sampleRate = 22050;
-        const words = text.split(" ");
+        // Always start the reliable visual speech/mouth loop
+        startMouthLoop();
 
-        // Use actual speech duration that matches Web Speech API timing
-        // We slightly overestimate the duration (using 130 wpm instead of 150)
-        // because the overarching onend event from Web Speech API will cleanly and instantly stop the animation.
-        // This ensures the lips don't stop prematurely before the voice finishes.
-        const estimatedDuration = Math.max(1, (words.length / 130) * 60);
-        const numSamples = Math.ceil(sampleRate * estimatedDuration);
+        // Also queue through TalkingHead audio if possible
+        try {
+          const sampleRate = 22050;
+          const words = text.split(" ").filter(Boolean);
+          const estimatedDuration = Math.max(1, (words.length / 130) * 60);
+          const numSamples = Math.ceil(sampleRate * estimatedDuration);
+          const audioCtx = head.audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+          const audioBuffer = audioCtx.createBuffer(1, numSamples, sampleRate);
+          const wordDuration = (estimatedDuration * 1000) / words.length;
+          const wtimes = words.map((_, i) => i * wordDuration);
+          const wdurations = words.map(() => wordDuration * 0.9);
 
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const audioBuffer = audioCtx.createBuffer(1, numSamples, sampleRate);
-
-        const wordDuration = (estimatedDuration * 1000) / words.length;
-        const wtimes = words.map((_, i) => i * wordDuration);
-        const wdurations = words.map(() => wordDuration * 0.9);
-
-        head.speakAudio({
-          audio: audioBuffer,
-          words,
-          wtimes,
-          wdurations,
-        }, { lipsyncLang: "en" });
+          head.speakAudio({
+            audio: audioBuffer,
+            words,
+            wtimes,
+            wdurations,
+          }, { lipsyncLang: "en" });
+        } catch (e) {
+          console.warn("TalkingHead speakAudio fallback active:", e);
+        }
       }
 
-      // Called from React when Web Speech API fires onend
       if (type === "stop") {
-        head.speakMarker(() => { });  // flush queue
-        
-        // Forcefully clear the TalkingHead internal queues to stop lip-sync instantly
-        if (head.speechQueue) head.speechQueue = [];
-        if (head.audioPlaylist) head.audioPlaylist = [];
+        stopMouthLoop();
         try {
-            if (head.audioSpeechSource) head.audioSpeechSource.stop();
-        } catch (e) { /* ignore if already stopped */ }
-        head.isSpeaking = false;
-        
-        // Purge animQueue of ANY animation that targets visemes
-        if (head.animQueue) {
-            head.animQueue = head.animQueue.filter(anim => {
-                if (anim.template && anim.template.name === "lipsync") return false;
-                if (anim.vs && Object.keys(anim.vs).some(k => k.startsWith("viseme_"))) return false;
-                return true;
-            });
-        }
-        
-        // Face reset
-        const visemes = ['aa', 'E', 'I', 'O', 'U', 'PP', 'SS', 'TH', 'DD', 'FF', 'kk', 'nn', 'RR', 'CH', 'sil'];
-        visemes.forEach(v => {
-            const m = head?.mtAvatar?.['viseme_' + v];
-            if (m) {
-                m.value = 0; m.applied = 0; m.newvalue = 0; m.needsUpdate = true;
-            }
-        });
-        
-        head.setMood("neutral");
-        head.stopAnimation?.();
+          head.speakMarker(() => {});
+          if (head.speechQueue) head.speechQueue = [];
+          if (head.audioPlaylist) head.audioPlaylist = [];
+          if (head.audioSpeechSource) {
+            try { head.audioSpeechSource.stop(); } catch (e) {}
+          }
+          head.isSpeaking = false;
+          head.setMood("neutral");
+        } catch (e) {}
       }
 
       if (type === "mood") {
