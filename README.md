@@ -1,130 +1,106 @@
-#  Hired — Plateforme intelligente de recherche d'emploi
+# 💼 Hired — Plateforme Intelligente de Recherche d'Emploi & Coaching de Carrière
 
-## Stack technique
-- **Frontend**: React 18 + TypeScript + Tailwind CSS + Vite
-- **Backend**: FastAPI (Python) + SQLAlchemy + Alembic
-- **Base de données**: PostgreSQL 16
-- **IA**: OpenAI GPT-4o (génération CV, simulateur, compatibilité)
-- **Jobs API**: JSearch (RapidAPI)
-- **Auth**: JWT (access + refresh tokens) + bcrypt
-- **Infra**: Docker + Docker Compose
+[![React](https://img.shields.io/badge/Frontend-React_18_%2B_TypeScript-61dafb?logo=react&logoColor=black)](https://react.dev/)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL_16-4169e1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![OpenAI](https://img.shields.io/badge/AI-OpenAI_GPT--4o-412991?logo=openai&logoColor=white)](https://openai.com/)
+[![Docker](https://img.shields.io/badge/DevOps-Docker_Compose-2496ed?logo=docker&logoColor=white)](https://www.docker.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+**Hired** est une plateforme SaaS complète d'aide au recrutement et d'optimisation de carrière propulsée par l'intelligence artificielle générative (GPT-4o). Elle intègre l'optimisation de CV compatible ATS, un agrégateur d'offres en temps réel (JSearch API), un tableau de bord de suivi Kanban et un simulateur d'entretien d'embauche adaptatif avec feedback selon la méthode STAR.
 
 ---
 
-##  Structure du projet
+## 🏛️ Architecture Technique
 
 ```
 hired/
 ├── backend/
 │   ├── app/
-│   │   ├── core/          # config, database, security
-│   │   ├── models/        # SQLAlchemy models
-│   │   ├── schemas/       # Pydantic schemas
-│   │   ├── routers/       # FastAPI routers
-│   │   ├── services/      # Business logic (AI, jobs)
-│   │   └── repositories/  # Data access layer
-│   ├── migrations/        # Alembic migrations
-│   ├── requirements.txt
+│   │   ├── core/          # Configuration, sécurité JWT, session PostgreSQL
+│   │   ├── models/        # Entités SQLAlchemy (Users, Jobs, Applications)
+│   │   ├── schemas/       # Schémas de validation Pydantic
+│   │   ├── routers/       # Endpoints FastAPI REST
+│   │   ├── services/      # Logique métier (IA GPT-4o, Agrégateur JSearch)
+│   │   └── repositories/  # Couche d'accès aux données (Repository Pattern)
+│   ├── migrations/        # Migrations de schéma Alembic
+│   ├── requirements.txt   # Dépendances Python
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/         # React pages
-│   │   ├── components/    # Reusable components
-│   │   ├── services/      # API calls (axios)
-│   │   ├── store/         # Zustand stores
-│   │   ├── hooks/         # Custom React hooks
-│   │   └── types/         # TypeScript types
+│   │   ├── pages/         # Vues React (Dashboard, CV, Jobs, Tracker, Interview)
+│   │   ├── components/    # Composants réutilisables (Layout, Modals, Badges)
+│   │   ├── services/      # Client HTTP Axios avec intercepteurs JWT
+│   │   ├── store/         # Gestion d'état global Zustand
+│   │   └── types/         # Interfaces & types TypeScript
 │   ├── package.json
 │   └── Dockerfile
-└── docker-compose.yml
+└── docker-compose.yml     # Orchestration multi-conteneurs
 ```
 
 ---
 
-##  Lancement rapide (Docker)
+## ⚡ Démarrage Rapide
+
+### Option A — Déploiement Docker (Recommandé)
 
 ```bash
-# 1. Cloner et configurer les variables d'environnement
+# 1. Configurer l'environnement
 cp .env.example .env
-# Remplir OPENAI_API_KEY et JSEARCH_API_KEY dans .env
 
-# 2. Lancer tout le projet
-docker-compose up --build
+# 2. Construire et démarrer l'ensemble des conteneurs
+docker-compose up --build -d
 
-# Frontend → http://localhost:3000
-# Backend  → http://localhost:8000
-# API docs → http://localhost:8000/docs
+# Frontend  → http://localhost:3000
+# Backend   → http://localhost:8000
+# Docs API  → http://localhost:8000/docs
 ```
 
 ---
 
-##  Lancement en développement (sans Docker)
+### Option B — Environnement Local (Sans Docker)
 
-### Backend
+#### 1. Backend (FastAPI + Python 3.11+)
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
+
 pip install -r requirements.txt
-
-# Configurer .env
 cp .env.example .env
-
-# Migrations
 alembic upgrade head
-
-# Lancer
 uvicorn app.main:app --reload --port 8000
 ```
 
-### Frontend
+#### 2. Frontend (React + Vite)
 ```bash
 cd frontend
 npm install
-cp .env.example .env.local
-# Mettre VITE_API_URL=http://localhost:8000/api
 npm run dev
 ```
 
 ---
 
-##  Variables d'environnement
+## 🎯 Fonctionnalités Principales
 
-```env
-# Backend .env
-DATABASE_URL=postgresql://hired_user:hired_pass@localhost:5432/hired_db
-SECRET_KEY=your-super-secret-key
-OPENAI_API_KEY=sk-...
-JSEARCH_API_KEY=your-jsearch-key
-ALLOWED_ORIGINS=["http://localhost:3000"]
-
-# Frontend .env.local
-VITE_API_URL=http://localhost:8000/api
-```
+| Module | Spécifications Fonctionnelles |
+| :--- | :--- |
+| **Authentification Sécurisée** | JWT stateless (Access Token + Refresh Token tournant), salage bcrypt |
+| **Optimiseur de CV & ATS** | Analyse sémantique de CV (PDF/DOCX), scoring de compatibilité et génération de formats ATS-friendly |
+| **Agrégateur d'Offres (Job Feed)** | Recherche en temps réel via l'API JSearch, scoring de compatibilité algorithmique avec le profil |
+| **Kanban Tracker** | Suivi dynamique des candidatures (Enregistré, Postulé, Entretien, Offre, Rejeté) avec export CSV/Excel |
+| **Simulateur d'Entretien IA** | Simulation conversationnelle en streaming (GPT-4o), évaluation des réponses selon la méthode STAR (*Situation, Task, Action, Result*) |
+| **Administration** | Supervision des utilisateurs, gestion des rôles et tableau de bord analytique |
 
 ---
 
-##  Fonctionnalités
+## 👩‍💻 Auteure
 
-| Module | Fonctionnalité |
-|---|---|
-|  Auth | Inscription, connexion JWT, refresh token |
-|  Profil | Modifier infos pro, compétences, préférences |
-|  CV | Upload PDF/DOCX, génération IA, optimisation ATS, export |
-|  Job Feed | Recherche JSearch, score compatibilité GPT-4o, sauvegarde |
-|  Tracker | Kanban 5 colonnes, priorités, export Excel/CSV |
-|  Simulateur | Entretien IA streaming GPT-4o, rapport STAR |
-|  Notifications | Système admin → utilisateurs |
-|  Admin | Stats, gestion users, ban/unban |
-
----
-
-##  Modèle de données
-
-8 entités principales :
-`Utilisateur` · `Profil` · `CV` · `OffreEmploi` · `Candidature` · `SessionEntretien` · `Notification` · `TestPreferences`
-
----
-
-## 👥 Auteur
-Yasmine Daoudi  PFE 2025/2026
+**Yasmine Daoudi**  
+*Projet de Fin d'Études (PFE) — Génie Informatique*  
+Université Ibn Tofail — Kénitra, Maroc  
+- LinkedIn : [linkedin.com/in/yasmine-daoudi-473260340](https://www.linkedin.com/in/yasmine-daoudi-473260340)  
+- GitHub : [github.com/yasmenmad](https://github.com/yasmenmad)
