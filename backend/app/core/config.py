@@ -1,32 +1,28 @@
+import logging
 from pydantic_settings import BaseSettings
-from typing import List
+from functools import lru_cache
+
+log = logging.getLogger(__name__)
+
 
 class Settings(BaseSettings):
-    # App
-    APP_NAME: str = "Hired"
-    DEBUG: bool = False
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.3-70b-versatile"
+    secret_key: str = "hired-secret-key-2024"
+    environment: str = "development"
+    frontend_url: str = "http://localhost:5173"
+    database_url: str = "sqlite+aiosqlite:///./hired.db"
+    scrape_interval: int = 3600
+    max_jobs_per_source: int = 200
+    rapidapi_key: str = ""
 
-    # Database
-    DATABASE_URL: str = "postgresql://hired_user:hired_pass@localhost:5432/hired_db"
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
 
-    # JWT
-    SECRET_KEY: str = "your-super-secret-key-change-in-production"
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # Groq
-    GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
-
-    # JSearch RapidAPI
-    JSEARCH_API_KEY: str = ""
-    JSEARCH_BASE_URL: str = "https://jsearch.p.rapidapi.com"
-
-    # CORS
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
-
-    class Config:
-        env_file = ".env"
-
-settings = Settings()
+@lru_cache()
+def get_settings() -> Settings:
+    return Settings()
