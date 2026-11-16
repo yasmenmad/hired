@@ -7,7 +7,7 @@ This document provides an exhaustive technical breakdown of the **Hired.** front
 ## 1. Architectural Philosophy: Clean Architecture & DDD
 The frontend is built upon **Domain-Driven Design (DDD)** principles and **Clean Architecture**. This decoupling ensures that the core business logic remains independent of the UI library (React), the API client (Fetch/Axios), and the specific state management implementation.
 
-### 📦 The Layered Structure (`frontend/src/`)
+### The Layered Structure (`frontend/src/`)
 
 #### A. Domain Layer (`/domain`)
 The absolute center of the application. It contains zero dependencies on external libraries.

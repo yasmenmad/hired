@@ -503,7 +503,7 @@ export default function InterviewPage({ toast, user }) {
                 transition: 'all .2s',
               }}
             >
-              <span style={{ fontSize: 24 }}>💬</span>
+              <span style={{ fontSize: 24 }}></span>
               <span style={{ fontSize: 14, fontWeight: 800 }}>Text Chat</span>
               <span style={{ fontSize: 11, opacity: .8 }}>Classic chat with Sophie</span>
             </button>
@@ -531,7 +531,7 @@ export default function InterviewPage({ toast, user }) {
               {role.trim() && (
                 <span style={{ position: 'absolute', top: 6, right: 8, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 50, background: 'rgba(16,185,129,.2)', color: '#059669', letterSpacing: .5, textTransform: 'uppercase' }}>NEW</span>
               )}
-              <span style={{ fontSize: 24 }}>📹</span>
+              <span style={{ fontSize: 24 }}></span>
               <span style={{ fontSize: 14, fontWeight: 800, color: role.trim() ? 'var(--ink)' : 'var(--muted)' }}>Video Call</span>
               <span style={{ fontSize: 11, color: 'var(--muted)' }}>3D avatar · voice-to-voice</span>
             </button>
@@ -539,7 +539,7 @@ export default function InterviewPage({ toast, user }) {
 
           {/* Note */}
           <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--p25)', border: '1px solid var(--faint)', fontSize: 11.5, color: 'var(--p600)', lineHeight: 1.6 }}>
-            <b>📹 Video Call</b> opens an immersive 3D AI avatar interview. Sara speaks and listens in real-time via voice. Requires the avatar backend running on <code style={{ background: 'var(--faint)', padding: '1px 4px', borderRadius: 4 }}>localhost:3000</code>.
+            <b>Video Call</b> opens an immersive 3D AI avatar interview. Sara speaks and listens in real-time via voice. Requires the avatar backend running on <code style={{ background: 'var(--faint)', padding: '1px 4px', borderRadius: 4 }}>localhost:3000</code>.
           </div>
         </div>
       </div>

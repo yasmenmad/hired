@@ -8,7 +8,7 @@ Welcome to **Hired.**, a state-of-the-art AI-powered career platform designed to
 
 The project follows a **Microservices-inspired Monorepo** structure, separating the core application logic from specialized AI processing engines.
 
-### 🏗️ General Layout
+### ️ General Layout
 - **`frontend/`**: A React single-page application (SPA) built with Vite.
 - **`backend/`**: A Python-based REST API built with FastAPI.
 - **`backend/avatar_engine/`**: A specialized Node.js service for real-time 3D avatar interactions.
@@ -17,21 +17,21 @@ The project follows a **Microservices-inspired Monorepo** structure, separating 
 
 ## 2. Technology Stack
 
-### 🎨 Frontend
+### Frontend
 - **Core**: React 18, JavaScript (ES6+), Vite (Build Tool).
 - **Styling**: Vanilla CSS with a customized Design System (Glassmorphism, Dark Mode).
 - **Localization**: `i18next` for English, French, and Arabic support.
 - **3D Rendering**: `TalkingHead` library (Three.js based) for the AI Interviewer.
 - **State Management**: React Context API (`SettingsContext`, `AuthContext`).
 
-### ⚙️ Backend (Main API)
+### ️ Backend (Main API)
 - **Framework**: FastAPI (Python 3.10+).
 - **AI Orchestration**: Groq SDK (using Llama 3.3 70B).
 - **Database**: SQLite (managed via SQLAlchemy or raw SQL utilities).
 - **Security**: JWT-based Authentication.
 - **Scraping**: Integration with multiple job sources (Indeed, LinkedIn, etc.) via mock/live aggregators.
 
-### 🤖 AI Avatar Engine
+### AI Avatar Engine
 - **Runtime**: Node.js + Express.
 - **Transcription**: Whisper (via Groq API) for Speech-to-Text.
 - **Logic**: Llama 3.3 for conversational intelligence.
@@ -41,7 +41,7 @@ The project follows a **Microservices-inspired Monorepo** structure, separating 
 
 ## 3. Directory & File Breakdown
 
-### 📂 Frontend (`frontend/src/`)
+### Frontend (`frontend/src/`)
 The frontend follows **Clean Architecture** principles to separate concerns.
 
 - **`domain/`**: Contains pure business entities and rules.
@@ -57,7 +57,7 @@ The frontend follows **Clean Architecture** principles to separate concerns.
     - `components/`: Reusable UI elements (Buttons, Cards, Nav).
 - **`locales/`**: JSON translation files for i18n.
 
-### 📂 Backend (`backend/app/`)
+### Backend (`backend/app/`)
 - **`main.py`**: Entry point. Sets up CORS, lifespan events, and routers.
 - **`api/routes/`**: Endpoint definitions.
     - `auth.py`: Login/Register logic.
@@ -65,7 +65,7 @@ The frontend follows **Clean Architecture** principles to separate concerns.
     - `ai.py`: CV analysis, Cover Letter generation, and AI chat.
 - **`core/`**: Configuration, database setup, and shared utilities.
 
-### 📂 Avatar Engine (`backend/avatar_engine/`)
+### Avatar Engine (`backend/avatar_engine/`)
 - **`index.js`**: Express server managing `/sts` (Speech-to-Speech) and `/tts` (Text-to-Speech) endpoints.
 - **`modules/whisper.mjs`**: Handles audio processing and transcription.
 - **`public/avatar.html`**: The specific container for the 3D model, loaded via Iframe in the React app.
@@ -74,7 +74,7 @@ The frontend follows **Clean Architecture** principles to separate concerns.
 
 ## 4. Logical Integration (How things connect)
 
-### 🔄 The Interview Flow
+### The Interview Flow
 1. **Selection**: The user chooses a role and difficulty in `InterviewPage.jsx`.
 2. **Mode Switch**:
     - **Chat Mode**: Frontend sends text to `backend/api/v1/ai` -> Groq -> Returns text.
@@ -84,7 +84,7 @@ The frontend follows **Clean Architecture** principles to separate concerns.
         - Engine transcribes audio (Whisper), gets AI response (Llama), and returns JSON containing text + animation metadata.
         - The `avatar.html` in the iframe receives a `postMessage` and plays the animation/speech.
 
-### 📈 The Data Flow
+### The Data Flow
 - **Authentication**: `SignInPage` -> `backend/auth` -> JWT stored in `localStorage` -> Included in `apiClient` headers.
 - **Job Feed**: `JobsPage` calls `backend/jobs`. The backend fetches listings and calls `Groq` to calculate a "Match Score" based on the user's profile.
 

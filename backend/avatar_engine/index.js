@@ -97,7 +97,7 @@ const getAIResponse = async (userMessage, currentEmotion = 'Neutral') => {
     });
 
     const content = completion.choices[0].message.content.trim();
-    console.log("🤖 Raw AI response:", content);
+    console.log(" Raw AI response:", content);
     
     const cleaned = content.replace(/```json|```/g, "").trim();
     let parsedResponse = null;
@@ -109,7 +109,7 @@ const getAIResponse = async (userMessage, currentEmotion = 'Neutral') => {
             spokenText = parsedResponse.messages.map(m => m.text).join(" ");
         }
     } catch (e) {
-        console.error("❌ Failed to parse AI response:", cleaned);
+        console.error(" Failed to parse AI response:", cleaned);
         parsedResponse = {
             messages: [{ text: "I'm sorry, I had trouble evaluating that. Let's move on. Could you tell me more about your previous work?", facialExpression: "sad", animation: "idle1" }]
         };
@@ -149,7 +149,7 @@ app.post("/tts", async (req, res) => {
         const messages = await buildMessages(aiResponse);
         res.json({ messages });
     } catch (error) {
-        console.error("❌ /tts error:", error);
+        console.error(" /tts error:", error);
         res.status(500).json({ error: "Failed to process request." });
     }
 });
@@ -162,17 +162,17 @@ app.post("/sts", async (req, res) => {
     try {
         const audioData = Buffer.from(base64Audio, "base64");
         const userMessage = await convertAudioToText({ audioData, groq });
-        console.log(`🎤 Transcribed [${currentEmotion}]:`, userMessage);
+        console.log(` Transcribed [${currentEmotion}]:`, userMessage);
 
         const aiResponse = await getAIResponse(userMessage, currentEmotion);
         const messages = await buildMessages(aiResponse);
         res.json({ messages });
     } catch (error) {
-        console.error("❌ /sts error:", error);
+        console.error(" /sts error:", error);
         res.status(500).json({ error: "Failed to process request." });
     }
 });
 
 app.listen(port, () => {
-    console.log(`🚀 Sara is listening on port ${port}`);
+    console.log(` Sara is listening on port ${port}`);
 });

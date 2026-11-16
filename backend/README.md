@@ -28,7 +28,7 @@ API docs: http://localhost:8000/docs
 
 | Key | Required | Where to get |
 |-----|----------|--------------|
-| `GROQ_API_KEY` | ✅ Yes | https://console.groq.com (free) |
+| `GROQ_API_KEY` |  Yes | https://console.groq.com (free) |
 | `RAPIDAPI_KEY` | Optional | https://rapidapi.com → JSearch API (for LinkedIn/Indeed) |
 
 ## Features

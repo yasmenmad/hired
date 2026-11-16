@@ -58,10 +58,10 @@ export default function AppNav({ activeTab, onTabChange, onExit, isAdmin=false, 
       <div style={{width:1,height:22,background:'var(--faint)',margin:'0 8px',flexShrink:0}}/>
 
       {/* Backend status badge */}
-      <div title={backendLive ? 'API connected — live jobs & AI active' : 'API offline — using static data. Start the FastAPI backend.'}
-        style={{display:'flex',alignItems:'center',gap:5,padding:'3px 10px',borderRadius:50,fontSize:10.5,fontWeight:700,background:backendLive?'var(--greenl)':'var(--amberl)',color:backendLive?'var(--green)':'var(--amber)',flexShrink:0,cursor:'default',border:`1px solid ${backendLive?'rgba(15,122,74,.2)':'rgba(138,90,10,.2)'}`}}>
-        <span style={{width:6,height:6,borderRadius:'50%',background:backendLive?'var(--green)':'var(--amber)',display:'inline-block',animation:backendLive?'pulse 2s ease-in-out infinite':'none'}}/>
-        {backendLive ? 'API Live' : 'API Offline'}
+      <div title={backendLive ? 'API connected — live jobs & AI active' : 'Client-side interactive demo engine active'}
+        style={{display:'flex',alignItems:'center',gap:5,padding:'3px 10px',borderRadius:50,fontSize:10.5,fontWeight:700,background:'var(--greenl)',color:'var(--green)',flexShrink:0,cursor:'default',border:`1px solid ${backendLive?'rgba(15,122,74,.2)':'rgba(138,90,10,.2)'}`}}>
+        <span style={{width:6,height:6,borderRadius:'50%',background:'var(--green)',display:'inline-block',animation:'pulse 2s ease-in-out infinite'}}/>
+        {backendLive ? 'API Live' : 'Interactive Demo'}
       </div>
 
       {/* Tabs */}

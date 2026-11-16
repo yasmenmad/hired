@@ -7,7 +7,7 @@ This document provides an exhaustive technical breakdown of the **Hired.** backe
 ## 1. System Design & Core Technologies
 The backend is designed as an asynchronous RESTful API, optimized for real-time AI processing and efficient job data aggregation.
 
-### 🛠️ Core Stack
+### ️ Core Stack
 - **Framework**: FastAPI (Pydantic V2 + Starlette).
 - **Asynchrony**: Python `asyncio` for non-blocking I/O (Database & AI calls).
 - **Intelligence Engine**: Groq Cloud SDK (Llama 3.3 70B & Whisper-large-v3).

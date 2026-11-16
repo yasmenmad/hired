@@ -19,6 +19,26 @@ async function groqDirect(messages, apiKey) {
 }
 
 /* ─── Timer helper ───────────────────────────────────── */
+
+  /* Simulated Intelligent Follow-Up Questions (for Offline / GitHub Pages Demo Mode) */
+  const getDemoFollowUp = (turnIndex, userText, targetRole) => {
+    const roleName = targetRole || 'Software Engineering';
+    const cleanUser = (userText || '').trim();
+    
+    const responses = [
+      `Thank you for sharing that background. For the ${roleName} role, technical depth and architectural foresight are essential. Could you walk me through the most challenging system or feature you have architected, and the trade-offs you evaluated?`,
+      `That is very interesting. When scaling applications in production, unexpected bottlenecks and edge cases always occur. Could you describe a difficult bug, performance regression, or system outage you diagnosed, and how you tracked down the root cause?`,
+      `Excellent insight. Beyond technical acumen, engineering leadership and team collaboration are fundamental. Can you recount a scenario where you had a strong technical disagreement with a team member or product manager, and how you resolved it constructively?`,
+      `Great perspective. Quality assurance and reliability are critical to our team. What automated testing strategies, CI/CD pipelines, and observability metrics do you prioritize when shipping production code?`,
+      `Thank you for those thorough responses. Throughout our session, you have shown strong analytical rigor, structured problem-solving, and clear articulation. Do you have any questions for me about our engineering team, stack, or culture?`
+    ];
+
+    if (turnIndex < responses.length) {
+      return responses[turnIndex];
+    }
+    return `Thank you for sharing those additional details. That gives me a comprehensive understanding of your technical experience. We're very excited about what you could bring to the ${roleName} team!`;
+  };
+
 const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
 /* ─── Voice helpers ──────────────────────────────────── */
@@ -134,15 +154,15 @@ export default function AvatarInterviewPage({ role, diff, focus, onEnd, toast })
       try {
         const faceapi = await import(FACE_API_CDN);
         faceApiRef.current = faceapi;
-        const MODEL_URL = '/models/face';
+        const MODEL_URL = './models/face';
         await Promise.all([
           faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
           faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
         ]);
         faceApiLoadedRef.current = true;
-        console.log('✅ Emotion models loaded');
+        console.log('Emotion models loaded');
       } catch (err) {
-        console.warn('⚠️ face-api unavailable, using audio-based emotion proxy', err.message);
+        console.warn('face-api unavailable, using audio-based emotion proxy', err.message);
         // Fallback: update emotion every 8s based on mic volume as a proxy
         faceApiLoadedRef.current = false;
       }
@@ -281,10 +301,10 @@ export default function AvatarInterviewPage({ role, diff, focus, onEnd, toast })
   /* ── Status text ── */
   useEffect(() => {
     if (!isCalling)         setStatusText('Click "Join Live Interview" to start');
-    else if (isLoading)     setStatusText('🤔 Sara is thinking…');
-    else if (isSaraTalking) setStatusText('💬 Sara is speaking… (click mic to interrupt)');
-    else if (isRecording)   setStatusText('🎙️ Recording — click mic again to send');
-    else                    setStatusText('Click 🎙️ to speak to Sara');
+    else if (isLoading)     setStatusText('Sara is analyzing response...');
+    else if (isSaraTalking) setStatusText('Sara is speaking... (click mic to interrupt)');
+    else if (isRecording)   setStatusText('Recording... click mic to send response');
+    else                    setStatusText('Click Mic to speak to Sara');
   }, [isCalling, isLoading, isSaraTalking, isRecording]);
 
   /* ── Speak with Web Speech API ── */
@@ -458,8 +478,18 @@ Your Interview Style:
     // ── 2. Groq fallback: transcribe via Web Speech API + Groq chat ──
     const gKey = localStorage.getItem('hired_groq_key') || '';
     if (!gKey) {
-      setErrorMsg('Avatar backend offline. Add an AI API key in Profile to enable AI responses.');
+      // Offline / GitHub Pages fallback — seamless conversational demo
+      const userText = window._lastSpeechTranscript || 'I have completed my explanation.';
+      window._lastSpeechTranscript = '';
+      if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch(e) {} }
+      
+      const turn = exchangeCount;
+      const followUp = getDemoFollowUp(turn, userText, role);
+      conversationRef.current.push({ role: 'user', content: userText });
+      conversationRef.current.push({ role: 'assistant', content: followUp });
+      setExchangeCount(c => c + 1);
       setIsLoading(false);
+      enqueueMessages([{ text: followUp, facialExpression: 'smile' }]);
       return;
     }
 
@@ -522,7 +552,14 @@ Your Interview Style:
       const DEFAULT_KEY = '';
       const gKey = localStorage.getItem('hired_groq_key') || DEFAULT_KEY;
       if (!gKey) {
-        setErrorMsg('Avatar backend offline. Add an AI API key in Profile to enable AI.');
+        // Offline / GitHub Pages fallback
+        const turn = exchangeCount;
+        const followUp = getDemoFollowUp(turn, val, role);
+        conversationRef.current.push({ role: 'user', content: val });
+        conversationRef.current.push({ role: 'assistant', content: followUp });
+        setExchangeCount(c => c + 1);
+        setIsLoading(false);
+        enqueueMessages([{ text: followUp, facialExpression: 'smile' }]);
         return;
       }
       conversationRef.current.push({ role: 'user', content: val });
@@ -765,7 +802,7 @@ Return ONLY valid JSON.`;
           <div>
             <div style={{ fontSize: 11, fontWeight: 800, color: '#10b981', textTransform: 'uppercase', marginBottom: 12 }}>Key Strengths</div>
             <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {data.strengths.map((s, i) => <li key={i} style={{ fontSize: 13, color: 'rgba(255,255,255,.7)', display: 'flex', gap: 8 }}><span>✓</span> {s}</li>)}
+              {data.strengths.map((s, i) => <li key={i} style={{ fontSize: 13, color: 'rgba(255,255,255,.7)', display: 'flex', gap: 8 }}><span></span> {s}</li>)}
             </ul>
           </div>
           <div>
@@ -822,7 +859,7 @@ Return ONLY valid JSON.`;
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 280, background: 'linear-gradient(to top, #080614 0%, transparent 100%)', zIndex: 2 }} />
           
           {/* Sara Iframe */}
-          <iframe ref={iframeRef} src="/avatar.html" style={{ width: '100%', height: '100%', border: 'none', position: 'absolute', inset: 0 }} allow="microphone" />
+          <iframe ref={iframeRef} src="./avatar.html" style={{ width: '100%', height: '100%', border: 'none', position: 'absolute', inset: 0 }} allow="microphone" />
 
           {/* Candidate Tile (Webcam) */}
           <div style={{ position: 'absolute', bottom: 120, right: 24, zIndex: 4, width: 220, height: 160, borderRadius: 20, overflow: 'hidden', background: '#000', border: '2px solid rgba(255,255,255,.15)', boxShadow: '0 12px 40px rgba(0,0,0,.6)' }}>
@@ -957,7 +994,7 @@ Return ONLY valid JSON.`;
                     emotion === 'Frustrated' ? 'rgba(245,158,11,.15)' :
                     'rgba(255,255,255,.05)'
                   ), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, transition: 'all .4s' }}>
-                    {emotion === 'Stressed' ? '😰' : emotion === 'Confident' ? '😎' : emotion === 'Engaged' ? '🤔' : emotion === 'Frustrated' ? '😤' : '😐'}
+                    {emotion === 'Stressed' ? '' : emotion === 'Confident' ? '' : emotion === 'Engaged' ? '' : emotion === 'Frustrated' ? '' : ''}
                   </div>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>Detected: {emotion}</div>
@@ -978,13 +1015,13 @@ Return ONLY valid JSON.`;
                 </div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>
                   {emotion === 'Stressed'
-                    ? '💡 Tip: Slow down. Pause before answering. Sara will adjust her tone to ease the pressure.'
+                    ? ' Tip: Slow down. Pause before answering. Sara will adjust her tone to ease the pressure.'
                     : emotion === 'Confident'
-                    ? '✨ You\'re projecting confidence. Articulate your experience with specific examples.'
+                    ? ' You\'re projecting confidence. Articulate your experience with specific examples.'
                     : emotion === 'Engaged'
-                    ? '🧠 You look engaged — great! Structure answers with the STAR method.'
+                    ? ' You look engaged — great! Structure answers with the STAR method.'
                     : emotion === 'Frustrated'
-                    ? '💡 Tip: It\'s okay to say "Let me think for a moment" — it shows composure.'
+                    ? ' Tip: It\'s okay to say "Let me think for a moment" — it shows composure.'
                     : 'Sara monitors your body language in real-time and adapts to help you perform your best.'}
                 </div>
               </div>
@@ -994,7 +1031,7 @@ Return ONLY valid JSON.`;
             
             {errorMsg && (
               <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.2)', color: '#fca5a5', fontSize: 11, lineHeight: 1.5 }}>
-                 ⚠️ {errorMsg}
+                 ️ {errorMsg}
               </div>
             )}
           </div>

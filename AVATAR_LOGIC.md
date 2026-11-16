@@ -40,12 +40,12 @@ The JSON arrives at the React app, which then passes it to the 3D Iframe via `po
 ## 3. The 3D Rendering Engine (`avatar.html`)
 Located in `public/`, this file is the "face" of the project.
 
-### 🧱 Three.js & TalkingHead
+### Three.js & TalkingHead
 - It utilizes the **TalkingHead** library, a high-level wrapper around **Three.js**.
 - **Model Loading**: It asynchronously loads `avatar.glb` (the mesh) and `animations.glb` (the library of movements).
 - **Camera Config**: Uses an "upper body" view with specific Y-offsets (`cameraY: 0.1`) to create a professional "Zoom call" perspective.
 
-### 👄 Lip-Sync Synchronization
+### Lip-Sync Synchronization
 The lip-sync is **Phoneme-based**, not just volume-based.
 1. The engine calculates the duration of each word in the text.
 2. It generates a "Mouth Cue" timeline.

@@ -58,14 +58,14 @@
 
     try {
       await head.showAvatar({
-        url: "/models/avatar.glb",
+        url: "./models/avatar.glb",
         body: "F",
         avatarMood: "neutral",
         lipsyncLang: "en",
       });
-      console.log("✅ Avatar loaded");
+      console.log(" Avatar loaded");
     } catch (e) {
-      console.error("❌ Avatar failed:", e);
+      console.error(" Avatar failed:", e);
     }
 
     const moodMap = {

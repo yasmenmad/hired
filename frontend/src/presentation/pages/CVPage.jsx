@@ -205,7 +205,7 @@ Optimized by Hired. — ATS Score: ${result.atsScore}%`;
 
   {/* Tab Switcher */}
   <div style={{display:'flex',gap:4,background:'var(--surface)',borderRadius:14,padding:5,border:'1.5px solid var(--faint)',marginBottom:18,width:'fit-content'}}>
-  {[['analyze','🔍 Analyze CV'],['generate','✨ Generate CV']].map(([id,lbl])=>(
+  {[['analyze',' Analyze CV'],['generate',' Generate CV']].map(([id,lbl])=>(
    <button key={id} onClick={()=>setTab(id)} style={{padding:'9px 22px',borderRadius:10,border:'none',fontWeight:700,fontSize:13,cursor:'pointer',background:tab===id?'var(--p500)':'transparent',color:tab===id?'#fff':'var(--muted)',fontFamily:'var(--sans)',transition:'all .15s'}}>{lbl}</button>
   ))}
   </div>
@@ -266,7 +266,7 @@ Optimized by Hired. — ATS Score: ${result.atsScore}%`;
   <label className="field-lbl">Paste Job Description (ATS tailoring)</label>
   <textarea className="field-input" value={genForm.targetJd} onChange={e=>setF('targetJd',e.target.value)} rows={3} placeholder="Paste the full job description here…" style={{resize:'vertical',marginBottom:12}}/>
   <button className="btn btn-primary" style={{width:'100%',justifyContent:'center'}} onClick={runGenerate} disabled={genLoading}>
-   {genLoading?'Generating your CV…':'✨ Generate My CV'}
+   {genLoading?'Generating your CV…':' Generate My CV'}
   </button>
   </div>
   </div>
@@ -333,7 +333,7 @@ Optimized by Hired. — ATS Score: ${result.atsScore}%`;
  <label className="field-lbl">Or paste custom job description</label>
  <textarea className="field-input" value={customJD} onChange={e=>setCustomJD(e.target.value)} rows={4} placeholder="Paste any job description for tailored analysis…" style={{resize:'vertical',minHeight:90,marginBottom:12}}/>
  <button className="btn btn-primary" style={{width:'100%',justifyContent:'center'}} onClick={runAnalysis} disabled={loading}>
- {loading?'Analysing your CV…':'🔍 Analyse My CV'}
+ {loading?'Analysing your CV…':' Analyse My CV'}
  </button>
  </div>
 
