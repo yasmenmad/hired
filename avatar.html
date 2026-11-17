@@ -13,13 +13,14 @@
     }
 
     body {
-      background: #141726;
+      background: #080614;
       overflow: hidden;
       width: 100vw;
       height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
     #avatar {
@@ -29,10 +30,20 @@
       top: 0;
       left: 0;
     }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 
 <body>
+  <!-- Loading HUD -->
+  <div id="loadingHUD" style="position:absolute;z-index:10;display:flex;flex-direction:column;align-items:center;gap:12px;color:#a78bfa;">
+    <div style="width:36px;height:36px;border-radius:50%;border:3px solid rgba(167,139,250,0.2);border-top-color:#a78bfa;animation:spin 0.8s linear infinite;"></div>
+    <div id="loadingText" style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">Sara 3D Engine Initializing...</div>
+  </div>
+
   <div id="avatar"></div>
 
   <script type="importmap">
@@ -51,32 +62,33 @@
     import { LipsyncEn } from "lipsync-en";
 
     const nodeAvatar = document.getElementById('avatar');
+    const loadingText = document.getElementById('loadingText');
+    const loadingHUD = document.getElementById('loadingHUD');
 
     const head = new TalkingHead(nodeAvatar, {
       cameraView: "upper",
       cameraDistance: 0.05,
       cameraY: 0.08,
-      lightAmbientIntensity: 2.5,
-      lightDirectIntensity: 28,
+      lightAmbientIntensity: 2.8,
+      lightDirectIntensity: 30,
       avatarMood: "neutral",
       lipsyncModules: ["en"],
       lipsyncLang: "en",
-      avatarIdleEyeContact: 0.7,
-      avatarIdleHeadMove: 0.5,
-      avatarSpeakingHeadMove: 0.8,
-      avatarSpeakingEyeContact: 0.85,
+      avatarIdleEyeContact: 0.85,
+      avatarIdleHeadMove: 0.85,
+      avatarSpeakingHeadMove: 1.25,
+      avatarSpeakingEyeContact: 0.9,
       modelFPS: 30,
       cameraRotateEnable: false,
       cameraPanEnable: false,
       cameraZoomEnable: false,
     });
 
-    // Explicitly inject the English lipsync processor to bypass dynamic resolution
     try {
       head.lipsync = head.lipsync || {};
       head.lipsync['en'] = new LipsyncEn();
     } catch (e) {
-      console.warn("Explicit LipsyncEn instantiation warning:", e);
+      console.warn("LipsyncEn warning:", e);
     }
 
     let avatarLoaded = false;
@@ -89,11 +101,26 @@
         body: "F",
         avatarMood: "neutral",
         lipsyncLang: "en",
+      }, (ev) => {
+        if (ev.lengthComputable && loadingText) {
+          const pct = Math.round((ev.loaded / ev.total) * 100);
+          loadingText.textContent = `Loading 3D Model: ${pct}%`;
+        }
       });
       avatarLoaded = true;
-      console.log("Sara 3D Avatar loaded successfully");
+      if (loadingHUD) loadingHUD.style.display = 'none';
+
+      // Load natural body animations and start idle gestures
+      try {
+        await head.playAnimation("./models/animations.glb");
+      } catch (animErr) {
+        console.warn("Animations play handled:", animErr);
+      }
+      console.log("Sara 3D Avatar fully active & animating");
     } catch (e) {
       console.error("Sara 3D Avatar failed to load:", e);
+      if (loadingText) loadingText.textContent = "Sara Ready (Fallback Active)";
+      if (loadingHUD) setTimeout(() => loadingHUD.style.display = 'none', 1000);
     }
 
     const moodMap = {
@@ -117,7 +144,6 @@
         cancelAnimationFrame(mouthAnimationId);
         mouthAnimationId = null;
       }
-      // Reset visemes smoothly
       visemeKeys.forEach(v => {
         const m = head?.mtAvatar?.[v];
         if (m) {
@@ -138,13 +164,11 @@
         if (!isSpeakingActive) return;
         const elapsed = (now - startTime) / 1000;
 
-        // Complex multi-frequency syllable pattern matching natural speech
         const syllable1 = Math.max(0, Math.sin(elapsed * 12));
         const syllable2 = Math.max(0, Math.sin(elapsed * 7.5 + 0.4));
         const syllable3 = Math.max(0, Math.sin(elapsed * 16.2 + 1.2));
         const mouthOpen = (syllable1 * 0.45 + syllable2 * 0.35 + syllable3 * 0.2);
 
-        // Modulate distinct phonemes
         if (head?.mtAvatar) {
           if (head.mtAvatar['viseme_aa']) {
             head.mtAvatar['viseme_aa'].value = mouthOpen * 0.8;
@@ -186,11 +210,10 @@
         head.setMood(mood);
         try { head.lookAtCamera(400); } catch (e) {}
         try { head.speakWithHands(); } catch (e) {}
+        try { head.playAnimation("./models/animations.glb"); } catch (e) {}
 
-        // Always start the reliable visual speech/mouth loop
         startMouthLoop();
 
-        // Also queue through TalkingHead audio if possible
         try {
           const sampleRate = 22050;
           const words = text.split(" ").filter(Boolean);
@@ -209,7 +232,7 @@
             wdurations,
           }, { lipsyncLang: "en" });
         } catch (e) {
-          console.warn("TalkingHead speakAudio fallback active:", e);
+          console.warn("speakAudio fallback active:", e);
         }
       }
 
@@ -228,7 +251,9 @@
       }
 
       if (type === "mood") {
-        head.setMood(moodMap[event.data.mood] || "neutral");
+        const targetMood = moodMap[event.data.mood] || "neutral";
+        head.setMood(targetMood);
+        try { head.lookAtCamera(400); } catch (e) {}
       }
     });
   </script>
