@@ -74,10 +74,10 @@
       avatarMood: "neutral",
       lipsyncModules: ["en"],
       lipsyncLang: "en",
-      avatarIdleEyeContact: 0.85,
-      avatarIdleHeadMove: 0.85,
-      avatarSpeakingHeadMove: 1.25,
-      avatarSpeakingEyeContact: 0.9,
+      avatarIdleEyeContact: 0.9,
+      avatarIdleHeadMove: 1.0,
+      avatarSpeakingHeadMove: 1.4,
+      avatarSpeakingEyeContact: 0.95,
       modelFPS: 30,
       cameraRotateEnable: false,
       cameraPanEnable: false,
@@ -110,20 +110,40 @@
       avatarLoaded = true;
       if (loadingHUD) loadingHUD.style.display = 'none';
 
-      // Load natural body animations and start idle gestures
-      try {
-        await head.playAnimation("./models/animations.glb");
-      } catch (animErr) {
-        console.warn("Animations play handled:", animErr);
-      }
-      console.log("Sara 3D Avatar fully active & animating");
+      // Start continuous procedural lifelike animation loop
+      head.lookAtCamera(500);
+      console.log("Sara 3D Avatar loaded and ready");
     } catch (e) {
       console.error("Sara 3D Avatar failed to load:", e);
       if (loadingText) loadingText.textContent = "Sara Ready (Fallback Active)";
       if (loadingHUD) setTimeout(() => loadingHUD.style.display = 'none', 1000);
     }
 
+    // Continuous lifelike idle movement: natural gaze drift, subtle posture breathing & nodding
+    setInterval(() => {
+      if (!avatarLoaded || isSpeakingActive) return;
+      try {
+        const driftX = (Math.random() - 0.5) * 0.16;
+        const driftY = (Math.random() - 0.5) * 0.09;
+        const duration = 1200 + Math.random() * 800;
+        head.lookAt(driftX, driftY, duration);
+        
+        // Attentive listener nod every ~4 cycles
+        if (Math.random() < 0.35) {
+          setTimeout(() => {
+            if (!isSpeakingActive) head.lookAtCamera(800);
+          }, duration + 200);
+        }
+      } catch (e) {}
+    }, 2500);
+
     const moodMap = {
+      confident: "happy",
+      engaged: "happy",
+      analytical: "neutral",
+      thoughtful: "neutral",
+      stressed: "sad",
+      frustrated: "angry",
       smile: "happy",
       happy: "happy",
       sad: "sad",
@@ -153,6 +173,7 @@
           m.needsUpdate = true;
         }
       });
+      try { head.lookAtCamera(500); } catch(e) {}
     }
 
     function startMouthLoop() {
@@ -164,24 +185,32 @@
         if (!isSpeakingActive) return;
         const elapsed = (now - startTime) / 1000;
 
-        const syllable1 = Math.max(0, Math.sin(elapsed * 12));
+        // Natural conversational mouth oscillation
+        const syllable1 = Math.max(0, Math.sin(elapsed * 13));
         const syllable2 = Math.max(0, Math.sin(elapsed * 7.5 + 0.4));
         const syllable3 = Math.max(0, Math.sin(elapsed * 16.2 + 1.2));
         const mouthOpen = (syllable1 * 0.45 + syllable2 * 0.35 + syllable3 * 0.2);
 
         if (head?.mtAvatar) {
           if (head.mtAvatar['viseme_aa']) {
-            head.mtAvatar['viseme_aa'].value = mouthOpen * 0.8;
+            head.mtAvatar['viseme_aa'].value = mouthOpen * 0.85;
             head.mtAvatar['viseme_aa'].needsUpdate = true;
           }
           if (head.mtAvatar['viseme_O']) {
-            head.mtAvatar['viseme_O'].value = Math.max(0, Math.sin(elapsed * 8.3)) * 0.5;
+            head.mtAvatar['viseme_O'].value = Math.max(0, Math.sin(elapsed * 8.3)) * 0.55;
             head.mtAvatar['viseme_O'].needsUpdate = true;
           }
           if (head.mtAvatar['viseme_I']) {
-            head.mtAvatar['viseme_I'].value = Math.max(0, Math.cos(elapsed * 10.1)) * 0.4;
+            head.mtAvatar['viseme_I'].value = Math.max(0, Math.cos(elapsed * 10.1)) * 0.45;
             head.mtAvatar['viseme_I'].needsUpdate = true;
           }
+        }
+
+        // Speaking head movement & subtle emphasis nodding
+        if (Math.sin(elapsed * 3.5) > 0.85) {
+          try { head.lookAt(0, -0.04, 300); } catch(e) {}
+        } else {
+          try { head.lookAtCamera(400); } catch(e) {}
         }
 
         mouthAnimationId = requestAnimationFrame(step);
@@ -201,16 +230,21 @@
 
     window.addEventListener("message", (event) => {
       const data = event.data || {};
-      const { type, text, facialExpression } = data;
+      const { type, text, facialExpression, mood } = data;
 
       unlockAudio();
 
+      if (type === "mood" && mood) {
+        const m = moodMap[mood] || "neutral";
+        head.setMood(m);
+        return;
+      }
+
       if (type === "speak" && text) {
-        const mood = moodMap[facialExpression] || "neutral";
-        head.setMood(mood);
+        const m = moodMap[facialExpression] || "neutral";
+        head.setMood(m);
         try { head.lookAtCamera(400); } catch (e) {}
-        try { head.speakWithHands(); } catch (e) {}
-        try { head.playAnimation("./models/animations.glb"); } catch (e) {}
+        try { head.speakWithHands(0, 0.85); } catch (e) {}
 
         startMouthLoop();
 
@@ -248,12 +282,6 @@
           head.isSpeaking = false;
           head.setMood("neutral");
         } catch (e) {}
-      }
-
-      if (type === "mood") {
-        const targetMood = moodMap[event.data.mood] || "neutral";
-        head.setMood(targetMood);
-        try { head.lookAtCamera(400); } catch (e) {}
       }
     });
   </script>

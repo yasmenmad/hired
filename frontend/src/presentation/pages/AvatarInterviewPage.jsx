@@ -172,13 +172,62 @@ export default function AvatarInterviewPage({ role, diff, focus, onEnd, toast })
     loadFaceApi();
   }, []);
 
+  /* ── Face API Model Loader ── */
+  useEffect(() => {
+    const loadFaceModels = async () => {
+      if (window.faceapi) {
+        try {
+          await window.faceapi.nets.tinyFaceDetector.loadFromUri('./models/face');
+          await window.faceapi.nets.faceExpressionNet.loadFromUri('./models/face');
+          console.log('Biometric facial expression models loaded successfully');
+        } catch(e) {
+          console.warn('Face models load notice:', e);
+        }
+      }
+    };
+    loadFaceModels();
+  }, []);
+
   /* ── Hyper-Responsive Multi-Modal Biometric & Emotion Telemetry Engine ── */
   useEffect(() => {
     let stepCount = 0;
-    const detect = () => {
+    const detect = async () => {
       if (feedback) return;
       stepCount++;
 
+      // 1. Try real-time deep learning face expression analysis from live webcam video
+      if (window.faceapi && videoRef.current && videoRef.current.readyState >= 2) {
+        try {
+          const detections = await window.faceapi
+            .detectSingleFace(videoRef.current, new window.faceapi.TinyFaceDetectorOptions({ inputSize: 224 }))
+            .withFaceExpressions();
+
+          if (detections && detections.expressions) {
+            const exprs = detections.expressions;
+            const sorted = Object.entries(exprs).sort((a, b) => b[1] - a[1]);
+            const [topExpr, topProb] = sorted[0];
+            const probPct = Math.round(topProb * 100);
+
+            let mappedEmotion = 'Confident';
+            if (topExpr === 'happy') mappedEmotion = 'Confident';
+            else if (topExpr === 'neutral') mappedEmotion = 'Engaged';
+            else if (topExpr === 'surprised') mappedEmotion = 'Analytical';
+            else if (topExpr === 'sad' || topExpr === 'fearful') mappedEmotion = 'Thoughtful';
+            else if (topExpr === 'angry') mappedEmotion = 'Determined';
+
+            const score = Math.max(86, Math.min(99, probPct));
+            setConfidenceScore(score);
+            if (mappedEmotion !== emotionRef.current) {
+              setEmotion(mappedEmotion);
+              emotionRef.current = mappedEmotion;
+              sendToAvatar({ type: 'mood', mood: mappedEmotion.toLowerCase() });
+            }
+            return;
+          }
+        } catch (e) {}
+      }
+
+      // 2. High-sensitivity acoustic cadence fallback if webcam face is temporarily averted
       let avg = 0;
       if (analyserRef.current) {
         try {
@@ -210,12 +259,11 @@ export default function AvatarInterviewPage({ role, diff, focus, onEnd, toast })
       if (targetEmotion !== emotionRef.current) {
         setEmotion(targetEmotion);
         emotionRef.current = targetEmotion;
-        // Signal 3D Sara avatar to respond to candidate mood
         sendToAvatar({ type: 'mood', mood: targetEmotion.toLowerCase() });
       }
     };
 
-    const interval = setInterval(detect, 800);
+    const interval = setInterval(detect, 600);
     return () => clearInterval(interval);
   }, [feedback, sendToAvatar]);
 
@@ -230,10 +278,17 @@ export default function AvatarInterviewPage({ role, diff, focus, onEnd, toast })
     navigator.mediaDevices
       .getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-        video: { width: 320, height: 240, frameRate: 15 },
+        video: { width: { ideal: 640 }, height: { ideal: 480 } },
       })
       .then(stream => {
-        if (videoRef.current) videoRef.current.srcObject = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.muted = true;
+          videoRef.current.play().catch(() => {});
+        }
+        if (stream.getVideoTracks().length > 0) {
+          setHasCamera(true);
+        }
 
         /* Audio analyser for volume meter only */
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
