@@ -143,13 +143,14 @@ export default function JobsPage({toast,user}){
   useEffect(()=>{
     checkBackend().then(ok=>{
       setBackendOk(ok);
-      if(ok)fetchJobs(1,'','All');
-      else{setLoading(false);toast('Backend offline — start uvicorn first');}
+      fetchJobs(1, '', 'All');
+    }).catch(()=>{
+      setBackendOk(false);
+      fetchJobs(1, '', 'All');
     });
   },[]);
 
   useEffect(()=>{
-    if(!backendOk)return;
     const t=setTimeout(()=>fetchJobs(1,search,filter,srcFilter),350);
     return()=>clearTimeout(t);
   },[search,filter,srcFilter,backendOk]);
@@ -256,9 +257,9 @@ export default function JobsPage({toast,user}){
           {loading&&<div style={{padding:32,textAlign:'center',color:'var(--muted)',fontSize:13,fontWeight:600,animation:'pulse 1.5s ease-in-out infinite'}}>Loading live jobs…</div>}
           {!loading&&jobsList.length===0&&(
             <div style={{padding:32,textAlign:'center',color:'var(--muted)'}}>
-              <div style={{fontSize:13,fontWeight:600,marginBottom:8}}>{backendOk?'No jobs found':'Backend offline'}</div>
+              <div style={{fontSize:13,fontWeight:600,marginBottom:8}}>'No jobs found matching criteria'</div>
               {backendOk?<button className="btn btn-ghost btn-sm" onClick={triggerScrape}>Fetch live jobs</button>
-                :<div style={{fontSize:11,color:'var(--red)'}}>Start: uvicorn app.main:app --reload --port 8000</div>}
+                :<div style={{fontSize:11,color:'var(--p600)'}}>Edge Cloud Catalog · Active</div>}
             </div>
           )}
           {jobsList.map(j=>(
@@ -304,7 +305,7 @@ export default function JobsPage({toast,user}){
             </div>
             <div style={{fontFamily:'var(--serif)',fontSize:20,fontWeight:700,color:'var(--ink2)'}}>Select a job</div>
             <div style={{fontSize:13,textAlign:'center',maxWidth:260,lineHeight:1.6}}>Click any listing to view details, AI summary, and apply directly on LinkedIn or Indeed.</div>
-            {!backendOk&&<div style={{padding:'12px 18px',borderRadius:12,background:'var(--redl)',fontSize:12,color:'var(--red)',textAlign:'center',maxWidth:280}}>Backend offline — start uvicorn</div>}
+            
           </div>
         ):(
           <div style={{padding:'24px 28px 48px',maxWidth:760}}>

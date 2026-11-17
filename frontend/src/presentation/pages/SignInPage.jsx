@@ -125,8 +125,13 @@ export default function SignInPage({ onSignIn, onBack }) {
               <button onClick={doSignIn} disabled={loading} style={{width:'100%',padding:14,background:'var(--p500)',color:'#fff',border:'none',borderRadius:50,fontSize:15,fontWeight:700,cursor:'pointer',transition:'all .18s',fontFamily:'var(--sans)',opacity:loading?.7:1}}>
                 {loading?'Signing in…':'Sign in'}
               </button>
-              <div style={{textAlign:'center',marginTop:18,fontSize:12,color:'var(--muted)',padding:'10px',background:'var(--p25)',borderRadius:8,border:'1px solid var(--faint)'}}>
-                Admin: <strong style={{color:'var(--p600)'}}>admin@hired.ai</strong> / <strong style={{color:'var(--p600)'}}>admin123</strong>
+              <div style={{marginTop:18,padding:'12px',background:'var(--p25)',borderRadius:8,border:'1px solid var(--faint)',textAlign:'center'}}>
+                <div style={{fontSize:12,color:'var(--muted)',marginBottom:6}}>
+                  Evaluation Demo: <strong style={{color:'var(--p600)'}}>admin@hired.ai</strong> / <strong style={{color:'var(--p600)'}}>admin123</strong>
+                </div>
+                <button type="button" onClick={()=>{ setEmail('admin@hired.ai'); setPw('admin123'); }} style={{fontSize:11.5,fontWeight:700,color:'var(--p600)',background:'var(--surface)',border:'1px solid var(--faint)',borderRadius:6,padding:'4px 10px',cursor:'pointer'}}>
+                  Auto-fill Credentials
+                </button>
               </div>
             </div>
           )}

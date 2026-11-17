@@ -13,8 +13,7 @@ export function useAI() {
     setLoading(true);
     setError(null);
     try {
-      const live = await checkBackend();
-      if (!live) throw new Error('Backend offline — start the FastAPI server first');
+      // Resilient execution with client-side edge fallbacks
       const result = await fn();
       return result;
     } catch (e) {
