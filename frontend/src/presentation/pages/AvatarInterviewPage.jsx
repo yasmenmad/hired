@@ -673,7 +673,48 @@ Your Interview Style:
     }
   };
 
+  
+  /* ── Direct Webcam Activation Engine ── */
+  const enableCamera = async () => {
+    try {
+      console.log('Activating camera feed...');
+      // 1. Standard request for webcam
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: true
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.muted = true;
+        try {
+          await videoRef.current.play();
+        } catch (e) {
+          console.warn('Direct video play error:', e);
+        }
+      }
+      setHasCamera(true);
+      return stream;
+    } catch (err) {
+      console.warn('Initial camera+mic request failed, trying simple video:', err);
+      try {
+        const vStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (videoRef.current) {
+          videoRef.current.srcObject = vStream;
+          videoRef.current.muted = true;
+          try {
+            await videoRef.current.play();
+          } catch (e) {}
+        }
+        setHasCamera(true);
+        return vStream;
+      } catch (err2) {
+        console.warn('Webcam access was not granted:', err2);
+      }
+    }
+  };
+
   const startCall = async () => {
+    enableCamera();
     if (audioContextRef.current?.state === 'suspended') audioContextRef.current.resume();
     setIsCalling(true);
     setIsLoading(true);
@@ -879,7 +920,10 @@ Return ONLY valid JSON.`;
                 <div style={{ width: 60, height: 60, borderRadius: '50%', border: '2px solid rgba(16,185,129,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8, background: 'rgba(16,185,129,0.08)' }}>
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
-                <span style={{ fontFamily: 'var(--sans)', fontSize: 10, fontWeight: 700, color: '#94a3b8', letterSpacing: 1.5, textTransform: 'uppercase' }}>Candidate Audio Link</span>
+                <span style={{ fontFamily: 'var(--sans)', fontSize: 10, fontWeight: 700, color: '#94a3b8', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 6 }}>Candidate Audio Link</span>
+                <button onClick={enableCamera} style={{ padding: '4px 12px', borderRadius: 20, background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', color: '#fff', fontSize: 10, fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 10px rgba(16,185,129,0.3)', transition: 'all 0.2s' }}>
+                  Enable Camera
+                </button>
               </div>
             )}
 
