@@ -39,7 +39,7 @@
 
 <body>
   <!-- Loading HUD -->
-  <div id="loadingHUD" style="position:absolute;z-index:10;display:flex;flex-direction:column;align-items:center;gap:12px;color:#a78bfa;">
+  <div id="loadingHUD" style="position:absolute;z-index:10;display:flex;flex-direction:column;align-items:center;gap:12px;color:#a78bfa;transition:opacity 0.4s ease;">
     <div style="width:36px;height:36px;border-radius:50%;border:3px solid rgba(167,139,250,0.2);border-top-color:#a78bfa;animation:spin 0.8s linear infinite;"></div>
     <div id="loadingText" style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">Sara 3D Engine Initializing...</div>
   </div>
@@ -69,16 +69,16 @@
       cameraView: "upper",
       cameraDistance: 0.05,
       cameraY: 0.08,
-      lightAmbientIntensity: 2.8,
-      lightDirectIntensity: 30,
+      lightAmbientIntensity: 3.0,
+      lightDirectIntensity: 32,
       avatarMood: "neutral",
       lipsyncModules: ["en"],
       lipsyncLang: "en",
-      avatarIdleEyeContact: 0.9,
-      avatarIdleHeadMove: 1.0,
-      avatarSpeakingHeadMove: 1.4,
-      avatarSpeakingEyeContact: 0.95,
-      modelFPS: 30,
+      avatarIdleEyeContact: 0.82,
+      avatarIdleHeadMove: 2.2,
+      avatarSpeakingHeadMove: 2.6,
+      avatarSpeakingEyeContact: 0.94,
+      modelFPS: 60,
       cameraRotateEnable: false,
       cameraPanEnable: false,
       cameraZoomEnable: false,
@@ -94,6 +94,8 @@
     let avatarLoaded = false;
     let mouthAnimationId = null;
     let isSpeakingActive = false;
+    let isUserSpeaking = false;
+    let animFrameId = null;
 
     try {
       await head.showAvatar({
@@ -104,38 +106,71 @@
       }, (ev) => {
         if (ev.lengthComputable && loadingText) {
           const pct = Math.round((ev.loaded / ev.total) * 100);
-          loadingText.textContent = `Loading 3D Model: ${pct}%`;
+          loadingText.textContent = `Loading Sara 3D: ${pct}%`;
         }
       });
       avatarLoaded = true;
-      if (loadingHUD) loadingHUD.style.display = 'none';
+      if (loadingHUD) {
+        loadingHUD.style.opacity = '0';
+        setTimeout(() => { loadingHUD.style.display = 'none'; }, 400);
+      }
 
-      // Start continuous procedural lifelike animation loop
-      head.lookAtCamera(500);
-      console.log("Sara 3D Avatar loaded and ready");
+      head.lookAtCamera(400);
+      console.log("Sara 3D Avatar fully loaded and animated");
+      startContinuousLifelikeMotion();
     } catch (e) {
       console.error("Sara 3D Avatar failed to load:", e);
-      if (loadingText) loadingText.textContent = "Sara Ready (Fallback Active)";
-      if (loadingHUD) setTimeout(() => loadingHUD.style.display = 'none', 1000);
+      if (loadingText) loadingText.textContent = "Sara Ready";
+      if (loadingHUD) setTimeout(() => { loadingHUD.style.display = 'none'; }, 800);
     }
 
-    // Continuous lifelike idle movement: natural gaze drift, subtle posture breathing & nodding
-    setInterval(() => {
-      if (!avatarLoaded || isSpeakingActive) return;
-      try {
-        const driftX = (Math.random() - 0.5) * 0.16;
-        const driftY = (Math.random() - 0.5) * 0.09;
-        const duration = 1200 + Math.random() * 800;
-        head.lookAt(driftX, driftY, duration);
-        
-        // Attentive listener nod every ~4 cycles
-        if (Math.random() < 0.35) {
-          setTimeout(() => {
-            if (!isSpeakingActive) head.lookAtCamera(800);
-          }, duration + 200);
+    // High-fidelity continuous procedural motion: breathing oscillation, subtle head tilts, listener nods
+    function startContinuousLifelikeMotion() {
+      let startTime = performance.now();
+      let lastNod = 0;
+      let lastGazeShift = 0;
+
+      function loop(now) {
+        if (!avatarLoaded) return;
+        const elapsed = (now - startTime) / 1000;
+
+        // 1. Natural thoracic breathing cycle: subtle chest & neck rotation
+        const breathCycle = Math.sin(elapsed * 1.4);
+        if (head?.scene) {
+          head.scene.position.y = breathCycle * 0.0025;
         }
-      } catch (e) {}
-    }, 2500);
+
+        // 2. Periodic attentive listening nods when user is speaking
+        if (isUserSpeaking && !isSpeakingActive && (now - lastNod > 2800)) {
+          lastNod = now;
+          try {
+            head.lookAt(0, -0.06, 350);
+            setTimeout(() => {
+              try { head.lookAtCamera(450); } catch(e){}
+            }, 400);
+          } catch(e){}
+        }
+
+        // 3. Natural gaze saccades (shifting focus gently around the screen)
+        if (!isSpeakingActive && !isUserSpeaking && (now - lastGazeShift > 3200)) {
+          lastGazeShift = now;
+          const gx = (Math.random() - 0.5) * 0.14;
+          const gy = (Math.random() - 0.5) * 0.08;
+          try {
+            head.lookAt(gx, gy, 1200);
+            if (Math.random() < 0.45) {
+              setTimeout(() => {
+                try { head.lookAtCamera(600); } catch(e){}
+              }, 1400);
+            }
+          } catch(e){}
+        }
+
+        animFrameId = requestAnimationFrame(loop);
+      }
+
+      animFrameId = requestAnimationFrame(loop);
+    }
 
     const moodMap = {
       confident: "happy",
@@ -185,7 +220,7 @@
         if (!isSpeakingActive) return;
         const elapsed = (now - startTime) / 1000;
 
-        // Natural conversational mouth oscillation
+        // Natural conversational mouth oscillation & phoneme morphing
         const syllable1 = Math.max(0, Math.sin(elapsed * 13));
         const syllable2 = Math.max(0, Math.sin(elapsed * 7.5 + 0.4));
         const syllable3 = Math.max(0, Math.sin(elapsed * 16.2 + 1.2));
@@ -204,11 +239,16 @@
             head.mtAvatar['viseme_I'].value = Math.max(0, Math.cos(elapsed * 10.1)) * 0.45;
             head.mtAvatar['viseme_I'].needsUpdate = true;
           }
+          // Expressive conversational eyebrows
+          if (head.mtAvatar['browInnerUp']) {
+            head.mtAvatar['browInnerUp'].value = Math.max(0, Math.sin(elapsed * 2.8)) * 0.3;
+            head.mtAvatar['browInnerUp'].needsUpdate = true;
+          }
         }
 
-        // Speaking head movement & subtle emphasis nodding
-        if (Math.sin(elapsed * 3.5) > 0.85) {
-          try { head.lookAt(0, -0.04, 300); } catch(e) {}
+        // Speaking head movement & conversational gestures
+        if (Math.sin(elapsed * 3.5) > 0.8) {
+          try { head.lookAt(0, -0.05, 300); } catch(e) {}
         } else {
           try { head.lookAtCamera(400); } catch(e) {}
         }
@@ -237,6 +277,14 @@
       if (type === "mood" && mood) {
         const m = moodMap[mood] || "neutral";
         head.setMood(m);
+        return;
+      }
+
+      if (type === "user_speaking") {
+        isUserSpeaking = !!data.active;
+        if (isUserSpeaking && !isSpeakingActive) {
+          try { head.lookAtCamera(300); } catch(e){}
+        }
         return;
       }
 
